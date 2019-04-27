@@ -1,0 +1,4 @@
+[workspace]
+members = [
+    "custom-slice-macros",
+]
