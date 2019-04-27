@@ -49,6 +49,30 @@ impl CustomSliceAttrs {
 
         None
     }
+
+    /// Returns an iterator of identifiers to be `derive`d.
+    pub(crate) fn derives<'a>(&'a self) -> impl Iterator<Item = &'a Ident> + 'a {
+        self.custom_meta
+            .iter()
+            .filter_map(|nested_meta| match nested_meta {
+                NestedMeta::Meta(meta) => Some(meta),
+                _ => None,
+            })
+            .filter_map(|meta| match meta {
+                Meta::List(list) => Some(list),
+                _ => None,
+            })
+            .filter(|list| list.ident == "derive")
+            .flat_map(|list| list.nested.iter())
+            .filter_map(|nested_meta| match nested_meta {
+                NestedMeta::Meta(meta) => Some(meta),
+                _ => None,
+            })
+            .filter_map(|meta| match meta {
+                Meta::Word(ident) => Some(ident),
+                _ => None,
+            })
+    }
 }
 
 impl From<Vec<Attribute>> for CustomSliceAttrs {

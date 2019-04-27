@@ -22,6 +22,7 @@ custom_slice_macros::define_slice_types_pair! {
 
     /// A string which contains only lower ascii characters.
     #[custom_slice(slice)]
+    #[custom_slice(derive(Default))]
     #[repr(transparent)]
     pub struct LowerAsciiStr(str);
 
@@ -41,6 +42,11 @@ fn default_string() {
 }
 
 #[test]
+fn default_str() {
+    let _ = <&LowerAsciiStr>::default();
+}
+
+#[test]
 fn string_conversion() {
     use std::borrow::{Borrow, ToOwned};
 
@@ -48,8 +54,3 @@ fn string_conversion() {
     let s: &LowerAsciiStr = string.borrow();
     let _: LowerAsciiString = s.to_owned();
 }
-
-//#[test]
-//fn default_str() {
-//    let _ = <&LowerAsciiStr>::default();
-//}

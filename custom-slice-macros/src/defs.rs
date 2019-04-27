@@ -25,16 +25,33 @@ pub(crate) struct Definitions {
 impl Definitions {
     /// Generate tokens.
     pub(crate) fn generate(&self) -> TokenStream {
-        let slice_type_item = self.slice.create_item();
-        let owned_type_item = self.owned.create_item();
-        let validator_item = self.validator.as_ref().map(Validator::create_item);
-        let to_owned_items = self.impl_to_owned();
-        quote! {
-            #slice_type_item
-            #owned_type_item
-            #validator_item
-            #to_owned_items
+        let mut items = Vec::new();
+        {
+            let slice_type_item = self.slice.create_item();
+            let owned_type_item = self.owned.create_item();
+            items.push(quote! {
+                #slice_type_item
+                #owned_type_item
+            });
         }
+        if let Some(validator) = &self.validator {
+            let validator_item = validator.create_item();
+            items.push(quote! { #validator_item });
+        }
+        {
+            let to_owned_items = self.impl_to_owned();
+            items.push(quote! { #to_owned_items });
+        }
+        {
+            let slice_impls = self.impl_derives_for_slice();
+            items.extend(slice_impls);
+        }
+        {
+            let owned_impls = self.impl_derives_for_owned();
+            items.extend(owned_impls);
+        }
+
+        quote! { #(#items)* }
     }
 
     /// Loads a `Definitions` from the given file content.
@@ -88,6 +105,47 @@ impl Definitions {
 
                 fn to_owned(&self) -> Self::Owned {
                     #expr_body_to_owned
+                }
+            }
+        }
+    }
+
+    /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
+    /// the slice type.
+    fn impl_derives_for_slice<'a>(&'a self) -> impl Iterator<Item = TokenStream> + 'a {
+        self.slice.attrs.derives().map(move |derive| {
+            let derive = derive.to_string();
+            match derive.as_str() {
+                "Default" => self.impl_slice_default(),
+                derive => panic!("Unknown derive target for slice type: {:?}", derive),
+            }
+        })
+    }
+
+    /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
+    /// the owned type.
+    fn impl_derives_for_owned<'a>(&'a self) -> impl Iterator<Item = TokenStream> + 'a {
+        self.owned.attrs.derives().map(|derive| {
+            let derive = derive.to_string();
+            match derive.as_str() {
+                derive => panic!("Unknown derive target for slice type: {:?}", derive),
+            }
+        })
+    }
+
+    /// Implements `Default` for slice type.
+    fn impl_slice_default(&self) -> TokenStream {
+        let ty_slice = self.slice.outer_type();
+        let ty_slice_inner = self.slice.inner_type();
+
+        let expr_body_default = self.slice_inner_to_slice_outer_unchecked(quote! {
+            <&#ty_slice_inner as std::default::Default>::default()
+        });
+
+        quote! {
+            impl std::default::Default for &#ty_slice {
+                fn default() -> Self {
+                    #expr_body_default
                 }
             }
         }

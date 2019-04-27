@@ -7,6 +7,7 @@ custom_slice_macros::define_slice_types_pair! {
     pub struct MyString(String);
 
     #[custom_slice(slice)]
+    #[custom_slice(derive(Default))]
     #[repr(transparent)]
     pub struct MyStr(str);
 }
@@ -17,6 +18,11 @@ fn default_string() {
 }
 
 #[test]
+fn default_str() {
+    let _ = <&MyStr>::default();
+}
+
+#[test]
 fn string_conversion() {
     use std::borrow::{Borrow, ToOwned};
 
@@ -24,8 +30,3 @@ fn string_conversion() {
     let s: &MyStr = string.borrow();
     let _: MyString = s.to_owned();
 }
-
-//#[test]
-//fn default_str() {
-//    let _ = <&MyStr>::default();
-//}
