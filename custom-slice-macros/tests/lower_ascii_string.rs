@@ -36,11 +36,20 @@ custom_slice_macros::define_slice_types_pair! {
 }
 
 #[test]
-fn create_string() {
+fn default_string() {
     let _ = LowerAsciiString::default();
 }
 
+#[test]
+fn string_conversion() {
+    use std::borrow::{Borrow, ToOwned};
+
+    let string = LowerAsciiString::default();
+    let s: &LowerAsciiStr = string.borrow();
+    let _: LowerAsciiString = s.to_owned();
+}
+
 //#[test]
-//fn create_str() {
+//fn default_str() {
 //    let _ = <&LowerAsciiStr>::default();
 //}

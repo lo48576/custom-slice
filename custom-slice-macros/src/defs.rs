@@ -28,16 +28,69 @@ impl Definitions {
         let slice_type_item = self.slice.create_item();
         let owned_type_item = self.owned.create_item();
         let validator_item = self.validator.as_ref().map(Validator::create_item);
+        let to_owned_items = self.impl_to_owned();
         quote! {
             #slice_type_item
             #owned_type_item
             #validator_item
+            #to_owned_items
         }
     }
 
     /// Loads a `Definitions` from the given file content.
     pub(crate) fn from_file(file: syn::File) -> Result<Self, LoadError> {
         Builder::try_from(file)?.build()
+    }
+
+    /// Returns the expression converted to a slice type without validation.
+    fn slice_inner_to_slice_outer_unchecked(&self, expr: TokenStream) -> TokenStream {
+        let ty_slice = self.slice.outer_type();
+        let ty_slice_inner = self.slice.inner_type();
+        quote! {
+            unsafe { &*(#expr as *const #ty_slice_inner as *const #ty_slice) }
+        }
+    }
+
+    /// Returns the expression converted to an owned type without validation.
+    fn owned_inner_to_owned_outer_unchecked(&self, expr: TokenStream) -> TokenStream {
+        let ty_owned = self.owned.outer_type();
+        let field_owned = self.owned.field_name();
+        quote! {
+            #ty_owned { #field_owned: #expr }
+        }
+    }
+
+    /// Implements `Borrowed` and `ToOwned`.
+    fn impl_to_owned(&self) -> TokenStream {
+        let ty_slice = self.slice.outer_type();
+        let ty_slice_inner = self.slice.inner_type();
+        let field_slice = self.slice.field_name();
+        let ty_owned = self.owned.outer_type();
+        let ty_owned_inner = self.owned.inner_type();
+        let field_owned = self.owned.field_name();
+
+        let expr_body_borrow = self.slice_inner_to_slice_outer_unchecked(quote! {
+            <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&self.#field_owned)
+        });
+        let expr_body_to_owned = self.owned_inner_to_owned_outer_unchecked(quote! {
+            <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&self.#field_slice)
+        });
+
+        quote! {
+            impl std::borrow::Borrow<#ty_slice> for #ty_owned {
+                fn borrow(&self) -> &#ty_slice {
+                    #expr_body_borrow
+                }
+            }
+
+            impl std::borrow::ToOwned for #ty_slice {
+                type Owned = #ty_owned;
+
+                fn to_owned(&self) -> Self::Owned {
+                    #expr_body_to_owned
+                }
+            }
+        }
     }
 }
 
