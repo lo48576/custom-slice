@@ -24,6 +24,8 @@ pub(crate) enum LoadError {
     MultipleOwnedDefinitions,
     /// Invalid special item.
     InvalidSpecialItem(SpecialItemType),
+    /// There are unexpected number of fields.
+    UnexpectedFields(usize),
 }
 
 impl error::Error for LoadError {}
@@ -39,6 +41,11 @@ impl fmt::Display for LoadError {
                 write!(f, "Multiple owned type definitions found")
             }
             LoadError::InvalidSpecialItem(ty) => write!(f, "Invalid special item: {:?}", ty),
+            LoadError::UnexpectedFields(num) => write!(
+                f,
+                "UnexpectedFields number of fields: expect just one, but got {}",
+                num
+            ),
         }
     }
 }
@@ -95,19 +102,13 @@ impl TryFrom<syn::File> for Builder {
                     let attrs = CustomSliceAttrs::from(replace(&mut item_struct.attrs, Vec::new()));
                     match attrs.special_item_type() {
                         Some(SpecialItemType::SliceType) => {
-                            let def = CustomType {
-                                item: item_struct,
-                                attrs,
-                            };
+                            let def = CustomType::new(item_struct, attrs)?;
                             if builder.slice.replace(def).is_some() {
                                 return Err(LoadError::MultipleSliceDefinitions);
                             }
                         }
                         Some(SpecialItemType::OwnedType) => {
-                            let def = CustomType {
-                                item: item_struct,
-                                attrs,
-                            };
+                            let def = CustomType::new(item_struct, attrs)?;
                             if builder.owned.replace(def).is_some() {
                                 return Err(LoadError::MultipleOwnedDefinitions);
                             }

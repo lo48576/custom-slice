@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{ItemFn, ItemStruct};
+use syn::{Field, Fields, ItemFn, ItemStruct};
 
 use crate::attrs::CustomSliceAttrs;
 
@@ -47,9 +47,37 @@ pub(crate) struct CustomType {
     item: ItemStruct,
     /// Attributes.
     attrs: CustomSliceAttrs,
+    /// Inner field.
+    inner_field: Field,
 }
 
 impl CustomType {
+    /// Creates a new `CustomType`.
+    fn new(item: ItemStruct, attrs: CustomSliceAttrs) -> Result<Self, LoadError> {
+        // Check number of fields.
+        let inner_field = match &item.fields {
+            Fields::Named(fields) => {
+                if fields.named.len() != 1 {
+                    return Err(LoadError::UnexpectedFields(fields.named.len()));
+                }
+                fields.named[0].clone()
+            }
+            Fields::Unnamed(fields) => {
+                if fields.unnamed.len() != 1 {
+                    return Err(LoadError::UnexpectedFields(fields.unnamed.len()));
+                }
+                fields.unnamed[0].clone()
+            }
+            Fields::Unit => return Err(LoadError::UnexpectedFields(0)),
+        };
+
+        Ok(Self {
+            item,
+            attrs,
+            inner_field,
+        })
+    }
+
     /// Creates an item.
     fn create_item(&self) -> ItemStruct {
         let mut item = self.item.clone();
