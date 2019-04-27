@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Field, Fields, ItemFn, ItemStruct};
+use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
 
 use crate::attrs::CustomSliceAttrs;
 
@@ -83,6 +83,24 @@ impl CustomType {
         let mut item = self.item.clone();
         item.attrs = self.attrs.raw.clone();
         item
+    }
+
+    /// Returns the outer type.
+    fn outer_type(&self) -> &Ident {
+        &self.item.ident
+    }
+
+    /// Returns the inner type.
+    fn inner_type(&self) -> &Type {
+        &self.inner_field.ty
+    }
+
+    /// Returns the inner field name or the index.
+    fn field_name(&self) -> TokenStream {
+        self.inner_field
+            .ident
+            .as_ref()
+            .map_or_else(|| quote! { 0 }, |ident| quote! { #ident })
     }
 }
 
