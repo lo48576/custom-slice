@@ -24,7 +24,7 @@ custom_slice_macros::define_slice_types_pair! {
 
     /// A string which contains only lower ascii characters.
     #[custom_slice(slice)]
-    #[custom_slice(derive(Default))]
+    #[custom_slice(derive(DefaultRef, DefaultRefMut))]
     #[repr(transparent)]
     #[custom_slice(new_unchecked = "unsafe fn new_unchecked")]
     #[custom_slice(new_unchecked_mut = "unsafe fn new_unchecked_mut")]

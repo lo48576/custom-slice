@@ -8,7 +8,7 @@ custom_slice_macros::define_slice_types_pair! {
     pub struct MyString(String);
 
     #[custom_slice(slice)]
-    #[custom_slice(derive(Default))]
+    #[custom_slice(derive(DefaultRef, DefaultRefMut))]
     #[repr(transparent)]
     #[custom_slice(new_unchecked = "pub fn new")]
     #[custom_slice(new_unchecked_mut = "pub fn new_mut")]

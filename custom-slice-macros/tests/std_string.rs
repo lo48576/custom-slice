@@ -82,7 +82,7 @@ custom_slice_macros::define_slice_types_pair! {
     ///
     /// See <https://doc.rust-lang.org/stable/std/primitive.str.html>.
     #[custom_slice(slice)]
-    #[custom_slice(derive(Default))]
+    #[custom_slice(derive(DefaultRef, DefaultRefMut))]
     #[repr(transparent)]
     #[custom_slice(new_unchecked = "pub unsafe fn from_utf8_unchecked")]
     #[custom_slice(new_unchecked_mut = "pub unsafe fn from_utf8_unchecked_mut")]
