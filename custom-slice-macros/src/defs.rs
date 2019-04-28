@@ -3,7 +3,7 @@
 use std::convert::TryFrom;
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{Block, Field, Fields, Ident, ItemFn, ItemStruct, ReturnType, Type};
 
 use crate::attrs::CustomSliceAttrs;
@@ -69,56 +69,21 @@ impl Definitions {
 
     /// Implements methods for the slice type.
     fn impl_methods_for_slice(&self) -> TokenStream {
-        let ty_slice = self.slice.outer_type();
-        let ty_slice_inner = self.slice.inner_type();
-        let arg_name = &quote! { _v };
         let new_unchecked = self
             .slice
             .attrs
             .get_new_unchecked()
             .expect("Failed to parse `new_unchecked` attribute")
-            .map(|mut new_fn| {
-                let is_unsafe = new_fn.unsafety.is_some();
-                let arg = syn::parse2(quote! { #arg_name: &#ty_slice_inner })
-                    .expect("Should never fail: generating fn arg");
-                new_fn.decl.inputs.push_value(arg);
-                let ret_ty = syn::parse2::<ReturnType>(quote! { -> &#ty_slice })
-                    .expect("Should never fail: generating return type");
-                new_fn.decl.output = ret_ty;
-                let body_expr = self
-                    .slice
-                    .slice_inner_to_outer_unchecked(arg_name.clone(), is_unsafe);
-                let block = syn::parse2::<Block>(quote! {{
-                    #body_expr
-                }})
-                .expect("Should never fail: generating function body");
-                *new_fn.block = block;
-                new_fn
-            });
+            .map(|new_fn| self.impl_slice_constructor_unchecked(new_fn, Mutability::Constant));
         let new_unchecked_mut = self
             .slice
             .attrs
             .get_new_unchecked_mut()
             .expect("Failed to parse `new_unchecked_mut` attribute")
-            .map(|mut new_fn| {
-                let is_unsafe = new_fn.unsafety.is_some();
-                let arg = syn::parse2(quote! { #arg_name: &mut #ty_slice_inner })
-                    .expect("Should never fail: generating fn arg");
-                new_fn.decl.inputs.push_value(arg);
-                let ret_ty = syn::parse2::<ReturnType>(quote! { -> &mut #ty_slice })
-                    .expect("Should never fail: generating return type");
-                new_fn.decl.output = ret_ty;
-                let body_expr = self
-                    .slice
-                    .slice_inner_to_outer_unchecked_mut(arg_name.clone(), is_unsafe);
-                let block = syn::parse2::<Block>(quote! {{
-                    #body_expr
-                }})
-                .expect("Should never fail: generating function body");
-                *new_fn.block = block;
-                new_fn
-            });
+            .map(|new_fn| self.impl_slice_constructor_unchecked(new_fn, Mutability::Mutable));
+
         if new_unchecked.is_some() || new_unchecked_mut.is_some() {
+            let ty_slice = self.slice.outer_type();
             quote! {
                 impl #ty_slice {
                     #new_unchecked
@@ -128,6 +93,33 @@ impl Definitions {
         } else {
             quote! {}
         }
+    }
+
+    fn impl_slice_constructor_unchecked(
+        &self,
+        mut new_fn: ItemFn,
+        mutability: Mutability,
+    ) -> ItemFn {
+        let arg_name = &quote! { _v };
+        let is_unsafe = new_fn.unsafety.is_some();
+        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
+        let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
+
+        let arg = syn::parse2(quote! { #arg_name: #ty_slice_inner_ref })
+            .expect("Should never fail: generating fn arg");
+        new_fn.decl.inputs.push_value(arg);
+        let ret_ty = syn::parse2::<ReturnType>(quote! { -> #ty_slice_ref })
+            .expect("Should never fail: generating return type");
+        new_fn.decl.output = ret_ty;
+        let body_expr =
+            self.slice
+                .slice_inner_to_outer_unchecked(arg_name.clone(), is_unsafe, mutability);
+        let block = syn::parse2::<Block>(quote! {{
+            #body_expr
+        }})
+        .expect("Should never fail: generating function body");
+        *new_fn.block = block;
+        new_fn
     }
 
     /// Implements methods for the owned type.
@@ -178,7 +170,7 @@ impl Definitions {
 
         let expr_body_borrow = self.slice.slice_inner_to_outer_unchecked(quote! {
             <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&self.#field_owned)
-        }, false);
+        }, false, Mutability::Constant);
         let expr_body_to_owned = self.owned.owned_inner_to_outer_unchecked(quote! {
             <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&self.#field_slice)
         });
@@ -235,9 +227,10 @@ impl Definitions {
         };
         let expr_body_default = if mutable {
             self.slice
-                .slice_inner_to_outer_unchecked_mut(default, false)
+                .slice_inner_to_outer_unchecked(default, false, Mutability::Mutable)
         } else {
-            self.slice.slice_inner_to_outer_unchecked(default, false)
+            self.slice
+                .slice_inner_to_outer_unchecked(default, false, Mutability::Constant)
         };
 
         quote! {
@@ -317,32 +310,14 @@ impl CustomType {
         &self,
         expr: TokenStream,
         is_unsafe_context: bool,
+        mutability: Mutability,
     ) -> TokenStream {
-        let ty_slice = self.outer_type();
-        let ty_slice_inner = self.inner_type();
+        let ty_slice_inner_ptr = mutability.make_ptr(self.inner_type());
+        let ty_slice_ptr = mutability.make_ptr(self.outer_type());
         // Type: &#ty_slice
-        let base = quote! {
-            &*(#expr as *const #ty_slice_inner as *const #ty_slice)
-        };
-        if is_unsafe_context {
-            base
-        } else {
-            quote! { unsafe { #base } }
-        }
-    }
-
-    /// Returns the expression converted to a mutable slice type without validation.
-    fn slice_inner_to_outer_unchecked_mut(
-        &self,
-        expr: TokenStream,
-        is_unsafe_context: bool,
-    ) -> TokenStream {
-        let ty_slice = self.outer_type();
-        let ty_slice_inner = self.inner_type();
-        // Type: &mut #ty_slice
-        let base = quote! {
-            &mut *(#expr as *mut #ty_slice_inner as *mut #ty_slice)
-        };
+        let base = mutability.make_ref(quote! {
+            *(#expr as #ty_slice_inner_ptr as #ty_slice_ptr)
+        });
         if is_unsafe_context {
             base
         } else {
@@ -375,5 +350,30 @@ impl Validator {
         let mut item = self.item.clone();
         item.attrs = self.attrs.raw.clone();
         item
+    }
+}
+
+/// Mutability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mutability {
+    /// Mutable.
+    Mutable,
+    /// Constant.
+    Constant,
+}
+
+impl Mutability {
+    fn make_ref(self, following: impl ToTokens) -> TokenStream {
+        match self {
+            Mutability::Mutable => quote! { &mut #following },
+            Mutability::Constant => quote! { &#following },
+        }
+    }
+
+    fn make_ptr(self, following: impl ToTokens) -> TokenStream {
+        match self {
+            Mutability::Mutable => quote! { *mut #following },
+            Mutability::Constant => quote! { *const #following },
+        }
     }
 }
