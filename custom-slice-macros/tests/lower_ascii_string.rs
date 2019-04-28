@@ -28,8 +28,9 @@ custom_slice_macros::define_slice_types_pair! {
     #[repr(transparent)]
     #[custom_slice(new_unchecked = "unsafe fn new_unchecked")]
     #[custom_slice(new_unchecked_mut = "unsafe fn new_unchecked_mut")]
-    //#[custom_slice(new_checked = "pub fn new")]
-    //#[custom_slice(new_checked_mut = "pub fn new_mut")]
+    #[custom_slice(new_checked = "pub fn new")]
+    #[custom_slice(new_checked_mut = "pub fn new_mut")]
+    #[custom_slice(error(type = "Error"))]
     pub struct LowerAsciiStr(str);
 
     /// Validates that the given string as `LowerAsciiStr`.
@@ -48,19 +49,26 @@ fn default() {
     let _ = <&LowerAsciiStr>::default();
 }
 
-/*
 #[test]
 fn new() {
-    assert!(LowerAsciiString::new("hello".to_owned()).is_ok());
-    assert!(LowerAsciiStr::new("hello").is_ok());
+    //assert!(LowerAsciiString::new("hello".to_owned()).is_ok());
+    {
+        let res: Result<&LowerAsciiStr, Error> = LowerAsciiStr::new("hello");
+        assert!(res.is_ok());
+    }
+    {
+        let mut hello = "hello".to_owned();
+        let hello_mut: &mut str = &mut hello;
+        let res: Result<&mut LowerAsciiStr, Error> = LowerAsciiStr::new_mut(hello_mut);
+        assert!(res.is_ok());
+    }
 }
 
 #[test]
 fn new_should_fail() {
-    assert!(LowerAsciiString::new("Hello".to_owned()).is_err());
+    //assert!(LowerAsciiString::new("Hello".to_owned()).is_err());
     assert!(LowerAsciiStr::new("Hello").is_err());
 }
-*/
 
 #[test]
 fn new_unchecked() {

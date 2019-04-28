@@ -1,6 +1,7 @@
 //! Attributes.
 
-use syn::{Attribute, Ident, ItemFn, Lit, Meta, NestedMeta};
+use quote::ToTokens;
+use syn::{Attribute, Expr, Ident, ItemFn, Lit, Meta, NestedMeta, Type};
 
 /// Special item types.
 #[derive(Debug, Clone, Copy)]
@@ -50,8 +51,7 @@ impl CustomSliceAttrs {
         None
     }
 
-    /// Returns an iterator of identifiers to be `derive`d.
-    pub(crate) fn derives<'a>(&'a self) -> impl Iterator<Item = &'a Ident> + 'a {
+    fn get_sublevel_meta<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a NestedMeta> + 'a {
         self.custom_meta
             .iter()
             .filter_map(|nested_meta| match nested_meta {
@@ -62,8 +62,13 @@ impl CustomSliceAttrs {
                 Meta::List(list) => Some(list),
                 _ => None,
             })
-            .filter(|list| list.ident == "derive")
+            .filter(move |list| list.ident == name)
             .flat_map(|list| list.nested.iter())
+    }
+
+    /// Returns an iterator of identifiers to be `derive`d.
+    pub(crate) fn derives<'a>(&'a self) -> impl Iterator<Item = &'a Ident> + 'a {
+        self.get_sublevel_meta("derive")
             .filter_map(|nested_meta| match nested_meta {
                 NestedMeta::Meta(meta) => Some(meta),
                 _ => None,
@@ -90,9 +95,8 @@ impl CustomSliceAttrs {
             .map(|nv| &nv.lit)
     }
 
-    /// Returns `new_unchecked` value.
-    pub(crate) fn get_new_unchecked(&self) -> Result<Option<ItemFn>, syn::Error> {
-        self.get_nv_value("new_unchecked")
+    fn get_item_fn_from_fn_prefix(&self, name: &str) -> Result<Option<ItemFn>, syn::Error> {
+        self.get_nv_value(name)
             .filter_map(|lit| match lit {
                 Lit::Str(ref s) => Some(syn::parse_str::<ItemFn>(&format!(
                     "{}() -> () {{}}",
@@ -104,13 +108,64 @@ impl CustomSliceAttrs {
             .transpose()
     }
 
+    /// Returns `new_unchecked` value.
+    pub(crate) fn get_new_unchecked(&self) -> Result<Option<ItemFn>, syn::Error> {
+        self.get_item_fn_from_fn_prefix("new_unchecked")
+    }
+
     /// Returns `new_unchecked_mut` value.
     pub(crate) fn get_new_unchecked_mut(&self) -> Result<Option<ItemFn>, syn::Error> {
-        self.get_nv_value("new_unchecked_mut")
+        self.get_item_fn_from_fn_prefix("new_unchecked_mut")
+    }
+
+    /// Returns `new_checked` value.
+    pub(crate) fn get_new_checked(&self) -> Result<Option<ItemFn>, syn::Error> {
+        self.get_item_fn_from_fn_prefix("new_checked")
+    }
+
+    /// Returns `new_checked_mut` value.
+    pub(crate) fn get_new_checked_mut(&self) -> Result<Option<ItemFn>, syn::Error> {
+        self.get_item_fn_from_fn_prefix("new_checked_mut")
+    }
+
+    fn get_error_conf<'a>(&'a self, key: &'a str) -> impl Iterator<Item = &'a Lit> + 'a {
+        self.get_sublevel_meta("error")
+            .filter_map(|nested_meta| match nested_meta {
+                NestedMeta::Meta(meta) => Some(meta),
+                _ => None,
+            })
+            .filter_map(|meta| match meta {
+                Meta::NameValue(nv) => Some(nv),
+                _ => None,
+            })
+            .filter(move |nv| nv.ident == key)
+            .map(|nv| &nv.lit)
+    }
+
+    pub(crate) fn get_error_type(&self) -> Result<Option<Type>, syn::Error> {
+        self.get_error_conf("type")
             .filter_map(|lit| match lit {
-                Lit::Str(ref s) => Some(syn::parse_str::<ItemFn>(&format!(
-                    "{}() -> () {{}}",
-                    s.value()
+                Lit::Str(ref s) => Some(s.parse::<Type>()),
+                _ => None,
+            })
+            .next()
+            .transpose()
+    }
+
+    pub(crate) fn get_map_error(
+        &self,
+        error_var: impl ToTokens,
+        arg_name: impl ToTokens,
+    ) -> Result<Option<Expr>, syn::Error> {
+        let error_var = error_var.into_token_stream().to_string();
+        let arg_name = arg_name.into_token_stream().to_string();
+        self.get_error_conf("map")
+            .filter_map(|lit| match lit {
+                Lit::Str(ref s) => Some(syn::parse_str::<Expr>(&format!(
+                    "{}({}, {})",
+                    s.value(),
+                    error_var,
+                    arg_name,
                 ))),
                 _ => None,
             })

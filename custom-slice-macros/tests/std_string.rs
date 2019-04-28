@@ -86,8 +86,10 @@ custom_slice_macros::define_slice_types_pair! {
     #[repr(transparent)]
     #[custom_slice(new_unchecked = "pub unsafe fn from_utf8_unchecked")]
     #[custom_slice(new_unchecked_mut = "pub unsafe fn from_utf8_unchecked_mut")]
-    //#[custom_slice(new_checked = "pub fn from_utf8")]
-    //#[custom_slice(new_checked_mut = "pub fn from_utf8_mut")]
+    #[custom_slice(new_checked = "pub fn from_utf8")]
+    #[custom_slice(new_checked_mut = "pub fn from_utf8_mut")]
+    #[custom_slice(error(type = "Utf8Error", map = "{|e, _v| e}"))]
+    //#[custom_slice(error(type = "Utf8Error"))]
     pub struct StdStr([u8]);
 
     /// Validates that the given bytes as `StdStr`.
@@ -115,19 +117,6 @@ impl StdString {
         }
     }
 }
-
-impl StdStr {
-    fn from_utf8(v: &[u8]) -> Result<&Self, Utf8Error> {
-        validate(v).map(|_| unsafe { Self::from_utf8_unchecked(v) })
-    }
-
-    fn from_utf8_mut(v: &mut [u8]) -> Result<&mut Self, Utf8Error> {
-        match validate(v) {
-            Ok(_) => Ok(unsafe { Self::from_utf8_unchecked_mut(v) }),
-            Err(e) => Err(e),
-        }
-    }
-}
 */
 
 #[test]
@@ -136,13 +125,20 @@ fn default() {
     let _ = <&StdStr>::default();
 }
 
-/*
 #[test]
-fn new() {
-    assert!(StdString::from_utf8(b"Hello".to_vec()).is_ok());
-    assert!(StdStr::from_utf8(b"Hello").is_ok());
+fn new_checked() {
+    //assert!(StdString::from_utf8(b"Hello".to_vec()).is_ok());
+    {
+        let res: Result<&StdStr, Utf8Error> = StdStr::from_utf8(b"Hello");
+        assert!(res.is_ok());
+    }
+    {
+        let mut hello = b"Hello".to_vec();
+        let hello_mut: &mut [u8] = &mut hello;
+        let res: Result<&mut StdStr, Utf8Error> = StdStr::from_utf8_mut(hello_mut);
+        assert!(res.is_ok());
+    }
 }
-*/
 
 #[test]
 fn new_unchecked() {

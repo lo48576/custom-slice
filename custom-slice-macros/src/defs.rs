@@ -81,13 +81,31 @@ impl Definitions {
             .get_new_unchecked_mut()
             .expect("Failed to parse `new_unchecked_mut` attribute")
             .map(|new_fn| self.impl_slice_constructor_unchecked(new_fn, Mutability::Mutable));
+        let new_checked = self
+            .slice
+            .attrs
+            .get_new_checked()
+            .expect("Failed to parse `new_checked` attribute")
+            .map(|new_fn| self.impl_slice_constructor_checked(new_fn, Mutability::Constant));
+        let new_checked_mut = self
+            .slice
+            .attrs
+            .get_new_checked_mut()
+            .expect("Failed to parse `new_checked_mut` attribute")
+            .map(|new_fn| self.impl_slice_constructor_checked(new_fn, Mutability::Mutable));
 
-        if new_unchecked.is_some() || new_unchecked_mut.is_some() {
+        if new_unchecked.is_some()
+            || new_unchecked_mut.is_some()
+            || new_checked.is_some()
+            || new_checked_mut.is_some()
+        {
             let ty_slice = self.slice.outer_type();
             quote! {
                 impl #ty_slice {
                     #new_unchecked
                     #new_unchecked_mut
+                    #new_checked
+                    #new_checked_mut
                 }
             }
         } else {
@@ -116,6 +134,54 @@ impl Definitions {
             .slice_inner_to_outer_unchecked(arg_name, is_unsafe, mutability);
         let block = syn::parse2::<Block>(quote! {{
             #body_expr
+        }})
+        .expect("Should never fail: generating function body");
+        *new_fn.block = block;
+        new_fn
+    }
+
+    fn impl_slice_constructor_checked(&self, mut new_fn: ItemFn, mutability: Mutability) -> ItemFn {
+        let validator = match &self.validator {
+            Some(v) => v,
+            None => panic!("Validator should be necessary for checked constructor"),
+        };
+        let arg_name = &quote! { _v };
+        let error_var = &quote! { _e };
+
+        let ty_error = self
+            .slice
+            .attrs
+            .get_error_type()
+            .expect("Failed to parse error type")
+            .expect("`#[custom_slice(error(type = \"...\"))]` should be specified");
+        let mapped_error = self
+            .slice
+            .attrs
+            .get_map_error(error_var, arg_name)
+            .expect("Failed to parse `map_error`")
+            .map(|map| quote! { #map })
+            .unwrap_or_else(|| error_var.clone());
+
+        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
+        let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
+
+        let arg = syn::parse2(quote! { #arg_name: #ty_slice_inner_ref })
+            .expect("Should never fail: generating fn arg");
+        new_fn.decl.inputs.push_value(arg);
+        let ret_ty =
+            syn::parse2::<ReturnType>(quote! { -> std::result::Result<#ty_slice_ref, #ty_error> })
+                .expect("Should never fail: generating return type");
+        new_fn.decl.output = ret_ty;
+
+        let validate_fn = validator.name();
+        let body_last_expr = self
+            .slice
+            .slice_inner_to_outer_unchecked(arg_name, false, mutability);
+        let block = syn::parse2::<Block>(quote! {{
+            match #validate_fn(#arg_name) {
+                Ok(_) => Ok(#body_last_expr),
+                Err(#error_var) => Err(#mapped_error),
+            }
         }})
         .expect("Should never fail: generating function body");
         *new_fn.block = block;
@@ -350,6 +416,11 @@ impl Validator {
         let mut item = self.item.clone();
         item.attrs = self.attrs.raw.clone();
         item
+    }
+
+    /// Returns function name.
+    fn name(&self) -> &Ident {
+        &self.item.ident
     }
 }
 
