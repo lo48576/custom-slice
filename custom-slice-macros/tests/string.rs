@@ -23,7 +23,7 @@ fn default() {
 
 #[test]
 fn new() {
-    let _: MyString = unsafe { MyString::new("Hello".to_owned()) };
+    let _: MyString = MyString::new("Hello".to_owned());
     let _: &MyStr = MyStr::new("Hello");
     {
         let mut hello = "Hello".to_owned();

@@ -199,7 +199,6 @@ impl Definitions {
             .get_new_unchecked()
             .expect("Failed to parse `new_unchecked` attribute")
             .map(|mut new_fn| {
-                new_fn.unsafety = Some(Default::default());
                 let arg = syn::parse2(quote! { #arg_name: #ty_owned_inner })
                     .expect("Should never fail: generating fn arg");
                 new_fn.decl.inputs.push_value(arg);
