@@ -111,9 +111,9 @@ impl Definitions {
         let ret_ty = syn::parse2::<ReturnType>(quote! { -> #ty_slice_ref })
             .expect("Should never fail: generating return type");
         new_fn.decl.output = ret_ty;
-        let body_expr =
-            self.slice
-                .slice_inner_to_outer_unchecked(arg_name.clone(), is_unsafe, mutability);
+        let body_expr = self
+            .slice
+            .slice_inner_to_outer_unchecked(arg_name, is_unsafe, mutability);
         let block = syn::parse2::<Block>(quote! {{
             #body_expr
         }})
@@ -308,7 +308,7 @@ impl CustomType {
     /// Returns the expression converted to a slice type without validation.
     fn slice_inner_to_outer_unchecked(
         &self,
-        expr: TokenStream,
+        expr: impl ToTokens,
         is_unsafe_context: bool,
         mutability: Mutability,
     ) -> TokenStream {
@@ -326,7 +326,7 @@ impl CustomType {
     }
 
     /// Returns the expression converted to an owned type without validation.
-    fn owned_inner_to_outer_unchecked(&self, expr: TokenStream) -> TokenStream {
+    fn owned_inner_to_outer_unchecked(&self, expr: impl ToTokens) -> TokenStream {
         let ty_owned = self.outer_type();
         let field_owned = self.field_name();
         // Type: #ty_owned
