@@ -1,6 +1,6 @@
 //! Attributes.
 
-use syn::{Attribute, Ident, Meta, NestedMeta};
+use syn::{Attribute, Ident, ItemFn, Lit, Meta, NestedMeta};
 
 /// Special item types.
 #[derive(Debug, Clone, Copy)]
@@ -72,6 +72,50 @@ impl CustomSliceAttrs {
                 Meta::Word(ident) => Some(ident),
                 _ => None,
             })
+    }
+
+    /// Returns value part of name-value meta.
+    fn get_nv_value<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Lit> + 'a {
+        self.custom_meta
+            .iter()
+            .filter_map(|nested_meta| match nested_meta {
+                NestedMeta::Meta(meta) => Some(meta),
+                _ => None,
+            })
+            .filter_map(|meta| match meta {
+                Meta::NameValue(nv) => Some(nv),
+                _ => None,
+            })
+            .filter(move |nv| nv.ident == name)
+            .map(|nv| &nv.lit)
+    }
+
+    /// Returns `new_unchecked` value.
+    pub(crate) fn get_new_unchecked(&self) -> Result<Option<ItemFn>, syn::Error> {
+        self.get_nv_value("new_unchecked")
+            .filter_map(|lit| match lit {
+                Lit::Str(ref s) => Some(syn::parse_str::<ItemFn>(&format!(
+                    "{}() -> () {{}}",
+                    s.value()
+                ))),
+                _ => None,
+            })
+            .next()
+            .transpose()
+    }
+
+    /// Returns `new_unchecked_mut` value.
+    pub(crate) fn get_new_unchecked_mut(&self) -> Result<Option<ItemFn>, syn::Error> {
+        self.get_nv_value("new_unchecked_mut")
+            .filter_map(|lit| match lit {
+                Lit::Str(ref s) => Some(syn::parse_str::<ItemFn>(&format!(
+                    "{}() -> () {{}}",
+                    s.value()
+                ))),
+                _ => None,
+            })
+            .next()
+            .transpose()
     }
 }
 

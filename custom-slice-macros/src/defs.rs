@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
+use syn::{Block, Field, Fields, Ident, ItemFn, ItemStruct, ReturnType, Type};
 
 use crate::attrs::CustomSliceAttrs;
 
@@ -39,6 +39,14 @@ impl Definitions {
             items.push(quote! { #validator_item });
         }
         {
+            let slice_methods = self.impl_methods_for_slice();
+            let owned_methods = self.impl_methods_for_owned();
+            items.push(quote! {
+                #slice_methods
+                #owned_methods
+            });
+        }
+        {
             let to_owned_items = self.impl_to_owned();
             items.push(quote! { #to_owned_items });
         }
@@ -59,21 +67,103 @@ impl Definitions {
         Builder::try_from(file)?.build()
     }
 
-    /// Returns the expression converted to a slice type without validation.
-    fn slice_inner_to_slice_outer_unchecked(&self, expr: TokenStream) -> TokenStream {
+    /// Implements methods for the slice type.
+    fn impl_methods_for_slice(&self) -> TokenStream {
         let ty_slice = self.slice.outer_type();
         let ty_slice_inner = self.slice.inner_type();
-        quote! {
-            unsafe { &*(#expr as *const #ty_slice_inner as *const #ty_slice) }
+        let arg_name = &quote! { _v };
+        let new_unchecked = self
+            .slice
+            .attrs
+            .get_new_unchecked()
+            .expect("Failed to parse `new_unchecked` attribute")
+            .map(|mut new_fn| {
+                let is_unsafe = new_fn.unsafety.is_some();
+                let arg = syn::parse2(quote! { #arg_name: &#ty_slice_inner })
+                    .expect("Should never fail: generating fn arg");
+                new_fn.decl.inputs.push_value(arg);
+                let ret_ty = syn::parse2::<ReturnType>(quote! { -> &#ty_slice })
+                    .expect("Should never fail: generating return type");
+                new_fn.decl.output = ret_ty;
+                let body_expr = self
+                    .slice
+                    .slice_inner_to_outer_unchecked(arg_name.clone(), is_unsafe);
+                let block = syn::parse2::<Block>(quote! {{
+                    #body_expr
+                }})
+                .expect("Should never fail: generating function body");
+                *new_fn.block = block;
+                new_fn
+            });
+        let new_unchecked_mut = self
+            .slice
+            .attrs
+            .get_new_unchecked_mut()
+            .expect("Failed to parse `new_unchecked_mut` attribute")
+            .map(|mut new_fn| {
+                let is_unsafe = new_fn.unsafety.is_some();
+                let arg = syn::parse2(quote! { #arg_name: &mut #ty_slice_inner })
+                    .expect("Should never fail: generating fn arg");
+                new_fn.decl.inputs.push_value(arg);
+                let ret_ty = syn::parse2::<ReturnType>(quote! { -> &mut #ty_slice })
+                    .expect("Should never fail: generating return type");
+                new_fn.decl.output = ret_ty;
+                let body_expr = self
+                    .slice
+                    .slice_inner_to_outer_unchecked_mut(arg_name.clone(), is_unsafe);
+                let block = syn::parse2::<Block>(quote! {{
+                    #body_expr
+                }})
+                .expect("Should never fail: generating function body");
+                *new_fn.block = block;
+                new_fn
+            });
+        if new_unchecked.is_some() || new_unchecked_mut.is_some() {
+            quote! {
+                impl #ty_slice {
+                    #new_unchecked
+                    #new_unchecked_mut
+                }
+            }
+        } else {
+            quote! {}
         }
     }
 
-    /// Returns the expression converted to an owned type without validation.
-    fn owned_inner_to_owned_outer_unchecked(&self, expr: TokenStream) -> TokenStream {
+    /// Implements methods for the owned type.
+    fn impl_methods_for_owned(&self) -> TokenStream {
         let ty_owned = self.owned.outer_type();
-        let field_owned = self.owned.field_name();
-        quote! {
-            #ty_owned { #field_owned: #expr }
+        let ty_owned_inner = self.owned.inner_type();
+        let arg_name = quote! { _v };
+        let new_unchecked = self
+            .owned
+            .attrs
+            .get_new_unchecked()
+            .expect("Failed to parse `new_unchecked` attribute")
+            .map(|mut new_fn| {
+                new_fn.unsafety = Some(Default::default());
+                let arg = syn::parse2(quote! { #arg_name: #ty_owned_inner })
+                    .expect("Should never fail: generating fn arg");
+                new_fn.decl.inputs.push_value(arg);
+                let ret_ty = syn::parse2::<ReturnType>(quote! { -> Self })
+                    .expect("Should never fail: generating return type");
+                new_fn.decl.output = ret_ty;
+                let body_expr = self.owned.owned_inner_to_outer_unchecked(arg_name);
+                let block = syn::parse2::<Block>(quote! {{
+                    #body_expr
+                }})
+                .expect("Should never fail: generating function body");
+                *new_fn.block = block;
+                new_fn
+            });
+        if new_unchecked.is_some() {
+            quote! {
+                impl #ty_owned {
+                    #new_unchecked
+                }
+            }
+        } else {
+            quote! {}
         }
     }
 
@@ -86,10 +176,10 @@ impl Definitions {
         let ty_owned_inner = self.owned.inner_type();
         let field_owned = self.owned.field_name();
 
-        let expr_body_borrow = self.slice_inner_to_slice_outer_unchecked(quote! {
+        let expr_body_borrow = self.slice.slice_inner_to_outer_unchecked(quote! {
             <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&self.#field_owned)
-        });
-        let expr_body_to_owned = self.owned_inner_to_owned_outer_unchecked(quote! {
+        }, false);
+        let expr_body_to_owned = self.owned.owned_inner_to_outer_unchecked(quote! {
             <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&self.#field_slice)
         });
 
@@ -138,9 +228,12 @@ impl Definitions {
         let ty_slice = self.slice.outer_type();
         let ty_slice_inner = self.slice.inner_type();
 
-        let expr_body_default = self.slice_inner_to_slice_outer_unchecked(quote! {
-            <&#ty_slice_inner as std::default::Default>::default()
-        });
+        let expr_body_default = self.slice.slice_inner_to_outer_unchecked(
+            quote! {
+                <&#ty_slice_inner as std::default::Default>::default()
+            },
+            false,
+        );
 
         quote! {
             impl std::default::Default for &#ty_slice {
@@ -212,6 +305,54 @@ impl CustomType {
             .ident
             .as_ref()
             .map_or_else(|| quote! { 0 }, |ident| quote! { #ident })
+    }
+
+    /// Returns the expression converted to a slice type without validation.
+    fn slice_inner_to_outer_unchecked(
+        &self,
+        expr: TokenStream,
+        is_unsafe_context: bool,
+    ) -> TokenStream {
+        let ty_slice = self.outer_type();
+        let ty_slice_inner = self.inner_type();
+        // Type: &#ty_slice
+        let base = quote! {
+            &*(#expr as *const #ty_slice_inner as *const #ty_slice)
+        };
+        if is_unsafe_context {
+            base
+        } else {
+            quote! { unsafe { #base } }
+        }
+    }
+
+    /// Returns the expression converted to a mutable slice type without validation.
+    fn slice_inner_to_outer_unchecked_mut(
+        &self,
+        expr: TokenStream,
+        is_unsafe_context: bool,
+    ) -> TokenStream {
+        let ty_slice = self.outer_type();
+        let ty_slice_inner = self.inner_type();
+        // Type: &mut #ty_slice
+        let base = quote! {
+            &mut *(#expr as *mut #ty_slice_inner as *mut #ty_slice)
+        };
+        if is_unsafe_context {
+            base
+        } else {
+            quote! { unsafe { #base } }
+        }
+    }
+
+    /// Returns the expression converted to an owned type without validation.
+    fn owned_inner_to_outer_unchecked(&self, expr: TokenStream) -> TokenStream {
+        let ty_owned = self.outer_type();
+        let field_owned = self.field_name();
+        // Type: #ty_owned
+        quote! {
+            #ty_owned { #field_owned: #expr }
+        }
     }
 }
 
