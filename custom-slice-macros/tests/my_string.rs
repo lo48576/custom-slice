@@ -2,14 +2,14 @@
 
 // No validations.
 custom_slice_macros::define_slice_types_pair! {
-    #[custom_slice(owned)]
     #[derive(Default)]
+    #[custom_slice(owned)]
     #[custom_slice(new_unchecked = "pub fn new")]
     pub struct MyString(String);
 
+    #[repr(transparent)]
     #[custom_slice(slice)]
     #[custom_slice(derive(DefaultRef, DefaultRefMut))]
-    #[repr(transparent)]
     #[custom_slice(new_unchecked = "pub fn new")]
     #[custom_slice(new_unchecked_mut = "pub fn new_mut")]
     pub struct MyStr(str);
