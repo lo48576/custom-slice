@@ -129,17 +129,8 @@ impl Definitions {
         let arg_name = SliceInner::new(quote! { _v }, mutability);
         let error_var = &quote! { _e };
 
-        let ty_error = self
-            .slice
-            .attrs
-            .get_error_type()
-            .expect("Failed to parse error type")
-            .expect("`#[custom_slice(error(type = \"...\"))]` should be specified");
-        let mapped_error = self
-            .slice
-            .attrs
-            .get_mapped_error(error_var, &arg_name)
-            .expect("Failed to parse `map_error`");
+        let (ty_error, mapped_error) =
+            get_error_ty_and_val(&self.slice.attrs, error_var, &arg_name);
 
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
@@ -212,17 +203,8 @@ impl Definitions {
         let arg_name = OwnedInner::new(quote! { _v });
         let error_var = &quote! { _e };
 
-        let ty_error = self
-            .owned
-            .attrs
-            .get_error_type()
-            .expect("Failed to parse error type")
-            .expect("`#[custom_slice(error(type = \"...\"))]` should be specified");
-        let mapped_error = self
-            .owned
-            .attrs
-            .get_mapped_error(error_var, &arg_name)
-            .expect("Failed to parse `map_error`");
+        let (ty_error, mapped_error) =
+            get_error_ty_and_val(&self.owned.attrs, error_var, &arg_name);
 
         let ty_owned_inner = self.owned.inner_type();
 
@@ -371,4 +353,19 @@ impl Validator {
     fn name(&self) -> &Ident {
         &self.item.ident
     }
+}
+
+fn get_error_ty_and_val(
+    attrs: &CustomSliceAttrs,
+    error_var: impl ToTokens,
+    arg_name: impl ToTokens,
+) -> (syn::Type, TokenStream) {
+    let ty_error = attrs
+        .get_error_type()
+        .expect("Failed to parse error type")
+        .expect("`#[custom_slice(error(type = \"...\"))]` should be specified");
+    let mapped_error = attrs
+        .get_mapped_error(error_var, arg_name)
+        .expect("Failed to parse `map_error`");
+    (ty_error, mapped_error)
 }
