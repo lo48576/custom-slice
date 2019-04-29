@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
+use syn::{parse_quote, Field, Fields, Ident, ItemFn, ItemStruct, Type};
 
 use crate::{
     attrs::CustomSliceAttrs,
@@ -108,7 +108,7 @@ impl Definitions {
             .build_item(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote! {})
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let block = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
-        *new_fn.block = syn::parse2(quote! {{ #block }}).expect("Should never fail: valid block");
+        *new_fn.block = parse_quote!({ #block });
         Some(new_fn)
     }
 
@@ -142,14 +142,14 @@ impl Definitions {
                     attr_name
                 ),
             };
-            quote! {{
+            parse_quote!({
                 match #fn_validate(#arg_name) {
                     Ok(_) => Ok(#expr_outer),
                     Err(#error_var) => Err(#mapped_error),
                 }
-            }}
+            })
         };
-        *new_fn.block = syn::parse2(block).expect("Should never fail: valid block");
+        *new_fn.block = block;
         Some(new_fn)
     }
 
