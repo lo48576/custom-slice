@@ -82,7 +82,7 @@ impl Definitions {
     }
 
     /// Implements methods for the slice type.
-    fn impl_methods_for_slice(&self) -> TokenStream {
+    fn impl_methods_for_slice(&self) -> Option<TokenStream> {
         let new_unchecked =
             self.impl_slice_constructor_unchecked("new_unchecked", Mutability::Constant);
         let new_unchecked_mut =
@@ -97,16 +97,16 @@ impl Definitions {
             || new_checked_mut.is_some()
         {
             let ty_slice = self.slice.outer_type();
-            quote! {
+            Some(quote! {
                 impl #ty_slice {
                     #new_unchecked
                     #new_unchecked_mut
                     #new_checked
                     #new_checked_mut
                 }
-            }
+            })
         } else {
-            quote! {}
+            None
         }
     }
 
@@ -192,20 +192,20 @@ impl Definitions {
     }
 
     /// Implements methods for the owned type.
-    fn impl_methods_for_owned(&self) -> TokenStream {
+    fn impl_methods_for_owned(&self) -> Option<TokenStream> {
         let new_unchecked = self.impl_owned_constructor_unchecked("new_unchecked");
         let new_checked = self.impl_owned_constructor_checked("new_checked");
 
         if new_unchecked.is_some() || new_checked.is_some() {
             let ty_owned = self.owned.outer_type();
-            quote! {
+            Some(quote! {
                 impl #ty_owned {
                     #new_unchecked
                     #new_checked
                 }
-            }
+            })
         } else {
-            quote! {}
+            None
         }
     }
 
