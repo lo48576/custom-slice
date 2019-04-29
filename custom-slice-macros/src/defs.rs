@@ -345,10 +345,10 @@ fn get_error_ty_and_val(
 ) -> (syn::Type, TokenStream) {
     let ty_error = attrs
         .get_error_type()
-        .expect("Failed to parse error type")
+        .unwrap_or_else(|e| panic!("Failed to parse error type: {}", e))
         .expect("`#[custom_slice(error(type = \"...\"))]` should be specified");
     let mapped_error = attrs
         .get_mapped_error(error_var, arg_name)
-        .expect("Failed to parse `map_error`");
+        .unwrap_or_else(|e| panic!("Failed to parse `map_error`: {}", e));
     (ty_error, mapped_error)
 }
