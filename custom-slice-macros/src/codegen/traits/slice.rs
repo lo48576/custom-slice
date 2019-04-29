@@ -20,7 +20,9 @@ pub(crate) fn impl_to_owned(defs: &Definitions) -> TokenStream {
     let slice_inner = defs.slice().inner_expr(quote! { self });
     let owned_inner = {
         let ty_slice_inner = defs.slice().inner_type();
-        OwnedInner(quote! { <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&#slice_inner) })
+        OwnedInner::new(quote! {
+            <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&#slice_inner)
+        })
     };
     let owned = owned_inner.to_owned_unchecked(defs);
 
@@ -41,7 +43,7 @@ pub(crate) fn impl_default_ref(defs: &Definitions, mutability: Mutability) -> To
     let ty_slice_ref = mutability.make_ref(defs.slice().outer_type());
     let ty_slice_inner_ref = mutability.make_ref(defs.slice().inner_type());
 
-    let default = SliceInner(quote! {
+    let default = SliceInner::new(quote! {
         <#ty_slice_inner_ref as std::default::Default>::default()
     });
     let body = slice_inner_to_outer_unchecked(defs, default, Safety::Safe, mutability);

@@ -109,7 +109,7 @@ impl Definitions {
         attr_name: &str,
         mutability: Mutability,
     ) -> Option<ItemFn> {
-        let arg_name = SliceInner(quote! { _v });
+        let arg_name = SliceInner::new(quote! { _v });
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
 
@@ -133,7 +133,7 @@ impl Definitions {
     ) -> Option<ItemFn> {
         let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
 
-        let arg_name = SliceInner(quote! { _v });
+        let arg_name = SliceInner::new(quote! { _v });
         let error_var = &quote! { _e };
 
         let ty_error = self
@@ -207,7 +207,7 @@ impl Definitions {
         let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
 
         let ty_owned_inner = self.owned.inner_type();
-        let arg_name = OwnedInner(quote! { _v });
+        let arg_name = OwnedInner::new(quote! { _v });
         let new_fn = fn_prefix
             .build_item(
                 &arg_name,
@@ -222,7 +222,7 @@ impl Definitions {
     fn impl_owned_constructor_checked(&self, attr_name: &str) -> Option<ItemFn> {
         let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
 
-        let arg_name = OwnedInner(quote! { _v });
+        let arg_name = OwnedInner::new(quote! { _v });
         let error_var = &quote! { _e };
 
         let ty_error = self
@@ -259,7 +259,7 @@ impl Definitions {
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let val_expr = arg_name.to_owned_unchecked(self);
         let validate_fn = validator.name();
-        let expr_slice_inner_ref = OwnedInner(arg_name).to_slice_inner_ref(self);
+        let expr_slice_inner_ref = OwnedInner::new(arg_name).to_slice_inner_ref(self);
         let block = quote! {{
             match #validate_fn(#expr_slice_inner_ref) {
                 Ok(_) => Ok(#val_expr),
@@ -376,7 +376,7 @@ impl CustomType {
         let base = mutability.make_ref(quote! {
             *(#expr as #ty_slice_inner_ptr as #ty_slice_ptr)
         });
-        Slice(context_safety.wrap_unsafe_expr(base))
+        Slice::new(context_safety.wrap_unsafe_expr(base))
     }
 }
 
