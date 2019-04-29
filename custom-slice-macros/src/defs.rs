@@ -240,6 +240,8 @@ impl Definitions {
             let derive = derive.to_string();
             match derive.as_str() {
                 "BorrowMut" => traits::owned::impl_borrow(self, Mutable),
+                "Deref" => traits::owned::impl_deref(self, Constant),
+                "DerefMut" => traits::owned::impl_deref(self, Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })

@@ -74,7 +74,7 @@ custom_slice_macros::define_slice_types_pair! {
     /// See <https://doc.rust-lang.org/stable/std/string/struct.String.html>.
     #[derive(Default)]
     #[custom_slice(owned)]
-    #[custom_slice(derive(BorrowMut))]
+    #[custom_slice(derive(BorrowMut, Deref, DerefMut))]
     #[custom_slice(new_unchecked = "pub unsafe fn from_utf8_unchecked")]
     #[custom_slice(new_checked = "pub fn from_utf8")]
     #[custom_slice(error(type = "FromUtf8Error", map = "FromUtf8Error::new"))]
@@ -158,4 +158,20 @@ fn borrow_mut() {
 
     let mut string = StdString::default();
     let _: &mut StdStr = <StdString as BorrowMut<StdStr>>::borrow_mut(&mut string);
+}
+
+#[test]
+fn deref() {
+    use std::ops::Deref;
+
+    let string = StdString::default();
+    let _: &StdStr = <StdString as Deref>::deref(&string);
+}
+
+#[test]
+fn deref_mut() {
+    use std::ops::DerefMut;
+
+    let mut string = StdString::default();
+    let _: &mut StdStr = <StdString as DerefMut>::deref_mut(&mut string);
 }

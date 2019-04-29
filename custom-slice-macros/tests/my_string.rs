@@ -4,6 +4,7 @@
 custom_slice_macros::define_slice_types_pair! {
     #[derive(Default)]
     #[custom_slice(owned)]
+    #[custom_slice(derive(Deref, DerefMut))]
     #[custom_slice(new_unchecked = "pub fn new")]
     pub struct MyString(String);
 
@@ -39,4 +40,20 @@ fn borrow_and_to_owned() {
     let string = MyString::default();
     let s: &MyStr = string.borrow();
     let _: MyString = s.to_owned();
+}
+
+#[test]
+fn deref() {
+    use std::ops::Deref;
+
+    let string = MyString::default();
+    let _: &MyStr = <MyString as Deref>::deref(&string);
+}
+
+#[test]
+fn deref_mut() {
+    use std::ops::DerefMut;
+
+    let mut string = MyString::default();
+    let _: &mut MyStr = <MyString as DerefMut>::deref_mut(&mut string);
 }
