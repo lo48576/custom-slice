@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{Block, Field, Fields, Ident, ItemFn, ItemStruct, ReturnType, Type};
+use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
 
 use crate::attrs::CustomSliceAttrs;
 
@@ -69,30 +69,13 @@ impl Definitions {
 
     /// Implements methods for the slice type.
     fn impl_methods_for_slice(&self) -> TokenStream {
-        let new_unchecked = self
-            .slice
-            .attrs
-            .get_new_unchecked()
-            .expect("Failed to parse `new_unchecked` attribute")
-            .map(|new_fn| self.impl_slice_constructor_unchecked(new_fn, Mutability::Constant));
-        let new_unchecked_mut = self
-            .slice
-            .attrs
-            .get_new_unchecked_mut()
-            .expect("Failed to parse `new_unchecked_mut` attribute")
-            .map(|new_fn| self.impl_slice_constructor_unchecked(new_fn, Mutability::Mutable));
-        let new_checked = self
-            .slice
-            .attrs
-            .get_new_checked()
-            .expect("Failed to parse `new_checked` attribute")
-            .map(|new_fn| self.impl_slice_constructor_checked(new_fn, Mutability::Constant));
-        let new_checked_mut = self
-            .slice
-            .attrs
-            .get_new_checked_mut()
-            .expect("Failed to parse `new_checked_mut` attribute")
-            .map(|new_fn| self.impl_slice_constructor_checked(new_fn, Mutability::Mutable));
+        let new_unchecked =
+            self.impl_slice_constructor_unchecked("new_unchecked", Mutability::Constant);
+        let new_unchecked_mut =
+            self.impl_slice_constructor_unchecked("new_unchecked_mut", Mutability::Mutable);
+        let new_checked = self.impl_slice_constructor_checked("new_checked", Mutability::Constant);
+        let new_checked_mut =
+            self.impl_slice_constructor_checked("new_checked_mut", Mutability::Mutable);
 
         if new_unchecked.is_some()
             || new_unchecked_mut.is_some()
@@ -115,36 +98,33 @@ impl Definitions {
 
     fn impl_slice_constructor_unchecked(
         &self,
-        mut new_fn: ItemFn,
+        attr_name: &str,
         mutability: Mutability,
-    ) -> ItemFn {
+    ) -> Option<ItemFn> {
         let arg_name = &quote! { _v };
-        let is_unsafe = new_fn.unsafety.is_some();
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
 
-        let arg = syn::parse2(quote! { #arg_name: #ty_slice_inner_ref })
-            .expect("Should never fail: generating fn arg");
-        new_fn.decl.inputs.push_value(arg);
-        let ret_ty = syn::parse2::<ReturnType>(quote! { -> #ty_slice_ref })
-            .expect("Should never fail: generating return type");
-        new_fn.decl.output = ret_ty;
-        let body_expr = self
-            .slice
-            .slice_inner_to_outer_unchecked(arg_name, is_unsafe, mutability);
-        let block = syn::parse2::<Block>(quote! {{
-            #body_expr
-        }})
-        .expect("Should never fail: generating function body");
-        *new_fn.block = block;
-        new_fn
+        let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
+        let mut new_fn = fn_prefix
+            .build_item(arg_name, ty_slice_inner_ref, ty_slice_ref, quote! {})
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        let block = self.slice.slice_inner_to_outer_unchecked(
+            arg_name,
+            new_fn.unsafety.is_some(),
+            mutability,
+        );
+        *new_fn.block = syn::parse2(quote! {{ #block }}).expect("Should never fail: valid block");
+        Some(new_fn)
     }
 
-    fn impl_slice_constructor_checked(&self, mut new_fn: ItemFn, mutability: Mutability) -> ItemFn {
-        let validator = match &self.validator {
-            Some(v) => v,
-            None => panic!("Validator should be necessary for checked constructor"),
-        };
+    fn impl_slice_constructor_checked(
+        &self,
+        attr_name: &str,
+        mutability: Mutability,
+    ) -> Option<ItemFn> {
+        let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
+
         let arg_name = &quote! { _v };
         let error_var = &quote! { _e };
 
@@ -165,54 +145,57 @@ impl Definitions {
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
 
-        let arg = syn::parse2(quote! { #arg_name: #ty_slice_inner_ref })
-            .expect("Should never fail: generating fn arg");
-        new_fn.decl.inputs.push_value(arg);
-        let ret_ty =
-            syn::parse2::<ReturnType>(quote! { -> std::result::Result<#ty_slice_ref, #ty_error> })
-                .expect("Should never fail: generating return type");
-        new_fn.decl.output = ret_ty;
+        let validator = match &self.validator {
+            Some(v) => v,
+            None => panic!(
+                "Validator should be necessary for checked constructor: attr_name = {:?}",
+                attr_name
+            ),
+        };
 
+        let mut new_fn = fn_prefix
+            .build_item(
+                arg_name,
+                ty_slice_inner_ref,
+                quote! { std::result::Result<#ty_slice_ref, #ty_error> },
+                quote! {},
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        let unsafe_expr = self.slice.slice_inner_to_outer_unchecked(
+            arg_name,
+            new_fn.unsafety.is_some(),
+            mutability,
+        );
         let validate_fn = validator.name();
-        let body_last_expr = self
-            .slice
-            .slice_inner_to_outer_unchecked(arg_name, false, mutability);
-        let block = syn::parse2::<Block>(quote! {{
+        let block = quote! {{
             match #validate_fn(#arg_name) {
-                Ok(_) => Ok(#body_last_expr),
+                Ok(_) => Ok(#unsafe_expr),
                 Err(#error_var) => Err(#mapped_error),
             }
-        }})
-        .expect("Should never fail: generating function body");
-        *new_fn.block = block;
-        new_fn
+        }};
+        *new_fn.block = syn::parse2(block).expect("Should never fail: valid block");
+        Some(new_fn)
     }
 
     /// Implements methods for the owned type.
     fn impl_methods_for_owned(&self) -> TokenStream {
         let ty_owned = self.owned.outer_type();
         let ty_owned_inner = self.owned.inner_type();
-        let arg_name = quote! { _v };
+        let arg_name = &quote! { _v };
         let new_unchecked = self
             .owned
             .attrs
-            .get_new_unchecked()
-            .expect("Failed to parse `new_unchecked` attribute")
-            .map(|mut new_fn| {
-                let arg = syn::parse2(quote! { #arg_name: #ty_owned_inner })
-                    .expect("Should never fail: generating fn arg");
-                new_fn.decl.inputs.push_value(arg);
-                let ret_ty = syn::parse2::<ReturnType>(quote! { -> Self })
-                    .expect("Should never fail: generating return type");
-                new_fn.decl.output = ret_ty;
-                let body_expr = self.owned.owned_inner_to_outer_unchecked(arg_name);
-                let block = syn::parse2::<Block>(quote! {{
-                    #body_expr
-                }})
-                .expect("Should never fail: generating function body");
-                *new_fn.block = block;
-                new_fn
-            });
+            .get_constructor("new_unchecked")
+            .map(|prefix| {
+                prefix.build_item(
+                    arg_name,
+                    ty_owned_inner,
+                    quote! { Self },
+                    self.owned.owned_inner_to_outer_unchecked(arg_name),
+                )
+            })
+            .transpose()
+            .expect("Failed to parse `new_unchecked` attribute");
         if new_unchecked.is_some() {
             quote! {
                 impl #ty_owned {

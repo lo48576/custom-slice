@@ -1,6 +1,6 @@
 //! Attributes.
 
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use syn::{Attribute, Expr, Ident, ItemFn, Lit, Meta, NestedMeta, Type};
 
 /// Special item types.
@@ -95,37 +95,13 @@ impl CustomSliceAttrs {
             .map(|nv| &nv.lit)
     }
 
-    fn get_item_fn_from_fn_prefix(&self, name: &str) -> Result<Option<ItemFn>, syn::Error> {
-        self.get_nv_value(name)
+    pub(crate) fn get_constructor(&self, attr_name: &str) -> Option<FnPrefix> {
+        self.get_nv_value(attr_name)
             .filter_map(|lit| match lit {
-                Lit::Str(ref s) => Some(syn::parse_str::<ItemFn>(&format!(
-                    "{}() -> () {{}}",
-                    s.value()
-                ))),
+                Lit::Str(ref s) => Some(FnPrefix::from(s.value())),
                 _ => None,
             })
             .next()
-            .transpose()
-    }
-
-    /// Returns `new_unchecked` value.
-    pub(crate) fn get_new_unchecked(&self) -> Result<Option<ItemFn>, syn::Error> {
-        self.get_item_fn_from_fn_prefix("new_unchecked")
-    }
-
-    /// Returns `new_unchecked_mut` value.
-    pub(crate) fn get_new_unchecked_mut(&self) -> Result<Option<ItemFn>, syn::Error> {
-        self.get_item_fn_from_fn_prefix("new_unchecked_mut")
-    }
-
-    /// Returns `new_checked` value.
-    pub(crate) fn get_new_checked(&self) -> Result<Option<ItemFn>, syn::Error> {
-        self.get_item_fn_from_fn_prefix("new_checked")
-    }
-
-    /// Returns `new_checked_mut` value.
-    pub(crate) fn get_new_checked_mut(&self) -> Result<Option<ItemFn>, syn::Error> {
-        self.get_item_fn_from_fn_prefix("new_checked_mut")
     }
 
     fn get_error_conf<'a>(&'a self, key: &'a str) -> impl Iterator<Item = &'a Lit> + 'a {
@@ -199,5 +175,32 @@ impl From<Vec<Attribute>> for CustomSliceAttrs {
             custom_meta: custom,
             raw,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FnPrefix {
+    /// Function definition without `(args...) -> Type { body }` part.
+    prefix: String,
+}
+
+impl FnPrefix {
+    pub(crate) fn build_item(
+        &self,
+        arg_name: impl ToTokens,
+        ty_arg: impl ToTokens,
+        ty_ret: impl ToTokens,
+        body_expr: impl ToTokens,
+    ) -> Result<ItemFn, syn::Error> {
+        let following = quote! {
+            (#arg_name: #ty_arg) -> #ty_ret { #body_expr }
+        };
+        syn::parse_str::<ItemFn>(&format!("{}{}", self.prefix, following.to_string()))
+    }
+}
+
+impl From<String> for FnPrefix {
+    fn from(prefix: String) -> Self {
+        Self { prefix }
     }
 }
