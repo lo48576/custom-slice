@@ -73,6 +73,24 @@ impl CustomSliceAttrs {
             })
     }
 
+    /// Checks whether `#[repr(transparent)]` or `#[repr(C)]` is specified.
+    pub(crate) fn is_repr_transparent_or_c(&self) -> bool {
+        self.raw
+            .iter()
+            .filter_map(|attr| attr.parse_meta().ok())
+            .filter_map(|meta| match meta {
+                Meta::List(list) => Some(list),
+                _ => None,
+            })
+            .filter(|list| list.ident == "repr")
+            .flat_map(|list| list.nested)
+            .filter_map(|nested_meta| match nested_meta {
+                NestedMeta::Meta(Meta::Word(ident)) => Some(ident),
+                _ => None,
+            })
+            .any(|ident| ident == "transparent" || ident == "C")
+    }
+
     /// Returns an iterator of identifiers to be `derive`d.
     pub(crate) fn derives<'a>(&'a self) -> impl Iterator<Item = &'a Ident> + 'a {
         self.lists("derive")

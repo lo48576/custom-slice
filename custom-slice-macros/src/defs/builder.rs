@@ -24,6 +24,8 @@ pub(crate) enum LoadError {
     MultipleOwnedDefinitions,
     /// Invalid special item.
     InvalidSpecialItem(SpecialItemType),
+    /// `#[repr(..)]` is necessary but not specified.
+    ReprAttributeNotFound,
     /// There are unexpected number of fields.
     UnexpectedFields(usize),
 }
@@ -41,6 +43,10 @@ impl fmt::Display for LoadError {
                 write!(f, "Multiple owned type definitions found")
             }
             LoadError::InvalidSpecialItem(ty) => write!(f, "Invalid special item: {:?}", ty),
+            LoadError::ReprAttributeNotFound => write!(
+                f,
+                "`#[repr(transparent)]` or `#[repr(C)]` is required but not specified"
+            ),
             LoadError::UnexpectedFields(num) => write!(
                 f,
                 "UnexpectedFields number of fields: expect just one, but got {}",
@@ -103,6 +109,9 @@ impl TryFrom<syn::File> for Builder {
                     match attrs.special_item_type() {
                         Some(SpecialItemType::SliceType) => {
                             let def = CustomType::new(item_struct, attrs)?;
+                            if !def.attrs.is_repr_transparent_or_c() {
+                                return Err(LoadError::ReprAttributeNotFound);
+                            }
                             if builder.slice.replace(def).is_some() {
                                 return Err(LoadError::MultipleSliceDefinitions);
                             }
