@@ -77,28 +77,21 @@ impl Definitions {
 
     /// Implements methods for the slice type.
     fn impl_methods_for_slice(&self) -> Option<TokenStream> {
-        let new_unchecked = self.impl_slice_constructor_unchecked("new_unchecked", Constant);
-        let new_unchecked_mut = self.impl_slice_constructor_unchecked("new_unchecked_mut", Mutable);
-        let new_checked = self.impl_slice_constructor_checked("new_checked", Constant);
-        let new_checked_mut = self.impl_slice_constructor_checked("new_checked_mut", Mutable);
+        let mut body = TokenStream::new();
+        self.impl_slice_constructor_unchecked("new_unchecked", Constant)
+            .to_tokens(&mut body);
+        self.impl_slice_constructor_unchecked("new_unchecked_mut", Mutable)
+            .to_tokens(&mut body);
+        self.impl_slice_constructor_checked("new_checked", Constant)
+            .to_tokens(&mut body);
+        self.impl_slice_constructor_checked("new_checked_mut", Mutable)
+            .to_tokens(&mut body);
 
-        if new_unchecked.is_some()
-            || new_unchecked_mut.is_some()
-            || new_checked.is_some()
-            || new_checked_mut.is_some()
-        {
-            let ty_slice = self.slice.outer_type();
-            Some(quote! {
-                impl #ty_slice {
-                    #new_unchecked
-                    #new_unchecked_mut
-                    #new_checked
-                    #new_checked_mut
-                }
-            })
-        } else {
-            None
+        if body.is_empty() {
+            return None;
         }
+        let ty_slice = self.slice.outer_type();
+        Some(quote! { impl #ty_slice { #body } })
     }
 
     fn impl_slice_constructor_unchecked(
@@ -162,20 +155,17 @@ impl Definitions {
 
     /// Implements methods for the owned type.
     fn impl_methods_for_owned(&self) -> Option<TokenStream> {
-        let new_unchecked = self.impl_owned_constructor_unchecked("new_unchecked");
-        let new_checked = self.impl_owned_constructor_checked("new_checked");
+        let mut body = TokenStream::new();
+        self.impl_owned_constructor_unchecked("new_unchecked")
+            .to_tokens(&mut body);
+        self.impl_owned_constructor_checked("new_checked")
+            .to_tokens(&mut body);
 
-        if new_unchecked.is_some() || new_checked.is_some() {
-            let ty_owned = self.owned.outer_type();
-            Some(quote! {
-                impl #ty_owned {
-                    #new_unchecked
-                    #new_checked
-                }
-            })
-        } else {
-            None
+        if body.is_empty() {
+            return None;
         }
+        let ty_owned = self.owned.outer_type();
+        Some(quote! { impl #ty_owned { #body } })
     }
 
     fn impl_owned_constructor_unchecked(&self, attr_name: &str) -> Option<ItemFn> {
