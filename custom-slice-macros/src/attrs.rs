@@ -60,7 +60,7 @@ impl CustomSliceAttrs {
                 NestedMeta::Meta(Meta::List(list)) if list.ident == name => Some(list),
                 _ => None,
             })
-            .flat_map(|list| list.nested.iter())
+            .flat_map(|list| &list.nested)
     }
 
     /// Returns `foo=bar, ..` of `#[custom_slice(foo = bar)]`.
