@@ -8,7 +8,10 @@ use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
 
 use crate::{
     attrs::CustomSliceAttrs,
-    codegen::expr::{Owned, OwnedInner, Slice, SliceInner, SliceLikeExpression},
+    codegen::{
+        expr::{Owned, OwnedInner, Slice, SliceInner, SliceLikeExpression},
+        props::Mutability,
+    },
 };
 
 use self::builder::{Builder, LoadError};
@@ -471,30 +474,5 @@ impl Validator {
     /// Returns function name.
     fn name(&self) -> &Ident {
         &self.item.ident
-    }
-}
-
-/// Mutability.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Mutability {
-    /// Mutable.
-    Mutable,
-    /// Constant.
-    Constant,
-}
-
-impl Mutability {
-    fn make_ref(self, following: impl ToTokens) -> TokenStream {
-        match self {
-            Mutability::Mutable => quote! { &mut #following },
-            Mutability::Constant => quote! { &#following },
-        }
-    }
-
-    fn make_ptr(self, following: impl ToTokens) -> TokenStream {
-        match self {
-            Mutability::Mutable => quote! { *mut #following },
-            Mutability::Constant => quote! { *const #following },
-        }
     }
 }
