@@ -19,7 +19,8 @@ custom_slice_macros::define_slice_types_pair! {
     #[custom_slice(owned)]
     #[derive(Default)]
     #[custom_slice(new_unchecked = "unsafe fn new_unchecked")]
-    //#[custom_slice(new_checked = "pub fn new")]
+    #[custom_slice(new_checked = "pub fn new")]
+    #[custom_slice(error(type = "Error"))]
     pub struct LowerAsciiString(String);
 
     /// A string which contains only lower ascii characters.
@@ -51,7 +52,7 @@ fn default() {
 
 #[test]
 fn new() {
-    //assert!(LowerAsciiString::new("hello".to_owned()).is_ok());
+    assert!(LowerAsciiString::new("hello".to_owned()).is_ok());
     {
         let res: Result<&LowerAsciiStr, Error> = LowerAsciiStr::new("hello");
         assert!(res.is_ok());
@@ -66,7 +67,7 @@ fn new() {
 
 #[test]
 fn new_should_fail() {
-    //assert!(LowerAsciiString::new("Hello".to_owned()).is_err());
+    assert!(LowerAsciiString::new("Hello".to_owned()).is_err());
     assert!(LowerAsciiStr::new("Hello").is_err());
 }
 

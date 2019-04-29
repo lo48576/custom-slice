@@ -179,32 +179,89 @@ impl Definitions {
 
     /// Implements methods for the owned type.
     fn impl_methods_for_owned(&self) -> TokenStream {
-        let ty_owned = self.owned.outer_type();
-        let ty_owned_inner = self.owned.inner_type();
-        let arg_name = &quote! { _v };
-        let new_unchecked = self
-            .owned
-            .attrs
-            .get_constructor("new_unchecked")
-            .map(|prefix| {
-                prefix.build_item(
-                    arg_name,
-                    ty_owned_inner,
-                    quote! { Self },
-                    self.owned.owned_inner_to_outer_unchecked(arg_name),
-                )
-            })
-            .transpose()
-            .expect("Failed to parse `new_unchecked` attribute");
-        if new_unchecked.is_some() {
+        let new_unchecked = self.impl_owned_constructor_unchecked("new_unchecked");
+        let new_checked = self.impl_owned_constructor_checked("new_checked");
+
+        if new_unchecked.is_some() || new_checked.is_some() {
+            let ty_owned = self.owned.outer_type();
             quote! {
                 impl #ty_owned {
                     #new_unchecked
+                    #new_checked
                 }
             }
         } else {
             quote! {}
         }
+    }
+
+    fn impl_owned_constructor_unchecked(&self, attr_name: &str) -> Option<ItemFn> {
+        let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
+
+        let ty_owned_inner = self.owned.inner_type();
+        let arg_name = &quote! { _v };
+        let new_fn = fn_prefix
+            .build_item(
+                arg_name,
+                ty_owned_inner,
+                quote! { Self },
+                self.owned.owned_inner_to_outer_unchecked(arg_name),
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        Some(new_fn)
+    }
+
+    fn impl_owned_constructor_checked(&self, attr_name: &str) -> Option<ItemFn> {
+        let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
+
+        let arg_name = &quote! { _v };
+        let error_var = &quote! { _e };
+
+        let ty_error = self
+            .owned
+            .attrs
+            .get_error_type()
+            .expect("Failed to parse error type")
+            .expect("`#[custom_slice(error(type = \"...\"))]` should be specified");
+        let mapped_error = self
+            .owned
+            .attrs
+            .get_map_error(error_var, arg_name)
+            .expect("Failed to parse `map_error`")
+            .map(|map| quote! { #map })
+            .unwrap_or_else(|| error_var.clone());
+
+        let ty_owned_inner = self.owned.inner_type();
+
+        let validator = match &self.validator {
+            Some(v) => v,
+            None => panic!(
+                "Validator should be necessary for checked constructor: attr_name = {:?}",
+                attr_name
+            ),
+        };
+
+        let mut new_fn = fn_prefix
+            .build_item(
+                arg_name,
+                ty_owned_inner,
+                quote! { std::result::Result<Self, #ty_error> },
+                quote! {},
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        let val_expr = self.owned.owned_inner_to_outer_unchecked(arg_name);
+        let validate_fn = validator.name();
+        let ty_slice_inner = self.slice.inner_type();
+        let block = quote! {{
+            match #validate_fn(
+                <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&#arg_name)
+            ) {
+                Ok(_) => Ok(#val_expr),
+                Err(#error_var) => Err(#mapped_error),
+            }
+        }};
+        *new_fn.block = syn::parse2(block).expect("Should never fail: valid block");
+        Some(new_fn)
     }
 
     /// Implements `Borrowed` and `ToOwned`.
