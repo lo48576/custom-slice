@@ -18,7 +18,7 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "0.4"
 quote = "0.6.8"
-syn = { version = "0.15.10", features = ["full"] }
+syn = { version = "0.15.22", features = ["full"] }
 
 [badges]
 maintenance = { status = "experimental" }
