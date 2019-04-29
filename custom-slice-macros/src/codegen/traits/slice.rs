@@ -7,7 +7,6 @@ use crate::{
     codegen::{
         expr::{OwnedInner, SliceInner},
         props::{Mutability, Safety},
-        traits::slice_inner_to_outer_unchecked,
     },
     defs::Definitions,
 };
@@ -43,10 +42,13 @@ pub(crate) fn impl_default_ref(defs: &Definitions, mutability: impl Mutability) 
     let ty_slice_ref = mutability.make_ref(defs.slice().outer_type());
     let ty_slice_inner_ref = mutability.make_ref(defs.slice().inner_type());
 
-    let default = SliceInner::new(quote! {
-        <#ty_slice_inner_ref as std::default::Default>::default()
-    });
-    let body = slice_inner_to_outer_unchecked(defs, default, Safety::Safe, mutability);
+    let default = SliceInner::new(
+        quote! {
+            <#ty_slice_inner_ref as std::default::Default>::default()
+        },
+        mutability,
+    );
+    let body = default.to_slice_unchecked(defs, Safety::Safe);
 
     quote! {
         impl std::default::Default for #ty_slice_ref {

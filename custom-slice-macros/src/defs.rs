@@ -9,7 +9,7 @@ use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
 use crate::{
     attrs::CustomSliceAttrs,
     codegen::{
-        expr::{OwnedInner, Slice, SliceInner},
+        expr::{OwnedInner, SliceInner},
         props::{Constant, Mutability, Mutable, Safety},
         traits,
     },
@@ -106,7 +106,7 @@ impl Definitions {
         attr_name: &str,
         mutability: impl Mutability,
     ) -> Option<ItemFn> {
-        let arg_name = SliceInner::new(quote! { _v });
+        let arg_name = SliceInner::new(quote! { _v }, mutability);
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
 
@@ -114,11 +114,7 @@ impl Definitions {
         let mut new_fn = fn_prefix
             .build_item(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote! {})
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let block = self.slice.slice_inner_to_outer_unchecked(
-            arg_name,
-            Safety::from(&new_fn.unsafety),
-            mutability,
-        );
+        let block = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
         *new_fn.block = syn::parse2(quote! {{ #block }}).expect("Should never fail: valid block");
         Some(new_fn)
     }
@@ -130,7 +126,7 @@ impl Definitions {
     ) -> Option<ItemFn> {
         let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
 
-        let arg_name = SliceInner::new(quote! { _v });
+        let arg_name = SliceInner::new(quote! { _v }, mutability);
         let error_var = &quote! { _e };
 
         let ty_error = self
@@ -166,11 +162,7 @@ impl Definitions {
                 quote! {},
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let expr_outer = self.slice.slice_inner_to_outer_unchecked(
-            arg_name.as_ref(),
-            Safety::from(&new_fn.unsafety),
-            mutability,
-        );
+        let expr_outer = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
         let validate_fn = validator.name();
         let block = quote! {{
             match #validate_fn(#arg_name) {
@@ -358,22 +350,6 @@ impl CustomType {
     pub(crate) fn inner_expr(&self, outer_expr: impl ToTokens) -> TokenStream {
         let field_name = self.field_name();
         quote! { #outer_expr.#field_name }
-    }
-
-    /// Returns the expression converted to a slice type without validation.
-    fn slice_inner_to_outer_unchecked(
-        &self,
-        expr: SliceInner<impl ToTokens>,
-        context_safety: Safety,
-        mutability: impl Mutability,
-    ) -> Slice<TokenStream> {
-        let ty_slice_inner_ptr = mutability.make_ptr(self.inner_type());
-        let ty_slice_ptr = mutability.make_ptr(self.outer_type());
-        // Type: &#ty_slice
-        let base = mutability.make_ref(quote! {
-            *(#expr as #ty_slice_inner_ptr as #ty_slice_ptr)
-        });
-        Slice::new(context_safety.wrap_unsafe_expr(base))
     }
 }
 

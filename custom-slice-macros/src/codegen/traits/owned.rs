@@ -5,8 +5,8 @@ use quote::quote;
 
 use crate::{
     codegen::{
+        expr::SliceInner,
         props::{DynMutability, Mutability, Safety},
-        traits::slice_inner_to_outer_unchecked,
     },
     defs::Definitions,
 };
@@ -32,11 +32,14 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
     let slice_inner_ref = {
         let ty_owned_inner = defs.owned().inner_type();
         let ty_slice_inner = defs.slice().inner_type();
-        quote! {
-            <#ty_owned_inner as #trait_borrow<#ty_slice_inner>>::#fn_borrow(#owned_inner_ref)
-        }
+        SliceInner::new(
+            quote! {
+                <#ty_owned_inner as #trait_borrow<#ty_slice_inner>>::#fn_borrow(#owned_inner_ref)
+            },
+            mutability,
+        )
     };
-    let body = slice_inner_to_outer_unchecked(defs, slice_inner_ref, Safety::Safe, mutability);
+    let body = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
 
     let self_ref = mutability.make_ref(quote! { self });
     let ty_slice = defs.slice().outer_type();
