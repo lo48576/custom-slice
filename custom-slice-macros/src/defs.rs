@@ -10,7 +10,7 @@ use crate::{
     attrs::CustomSliceAttrs,
     codegen::{
         expr::{Owned, OwnedInner, Slice, SliceInner, SliceLikeExpression},
-        props::Mutability,
+        props::{Mutability, Safety},
     },
 };
 
@@ -125,7 +125,7 @@ impl Definitions {
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let block = self.slice.slice_inner_to_outer_unchecked(
             arg_name,
-            new_fn.unsafety.is_some(),
+            Safety::from(&new_fn.unsafety),
             mutability,
         );
         *new_fn.block = syn::parse2(quote! {{ #block }}).expect("Should never fail: valid block");
@@ -175,15 +175,15 @@ impl Definitions {
                 quote! {},
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let unsafe_expr = self.slice.slice_inner_to_outer_unchecked(
+        let expr_outer = self.slice.slice_inner_to_outer_unchecked(
             arg_name.as_ref(),
-            new_fn.unsafety.is_some(),
+            Safety::from(&new_fn.unsafety),
             mutability,
         );
         let validate_fn = validator.name();
         let block = quote! {{
             match #validate_fn(#arg_name) {
-                Ok(_) => Ok(#unsafe_expr),
+                Ok(_) => Ok(#expr_outer),
                 Err(#error_var) => Err(#mapped_error),
             }
         }};
@@ -283,7 +283,7 @@ impl Definitions {
 
         let expr_body_borrow = self.slice.slice_inner_to_outer_unchecked(
             Owned(quote! { self }).to_slice_inner_expr(self),
-            false,
+            Safety::Safe,
             Mutability::Constant,
         );
         let expr_body_to_owned = self
@@ -339,9 +339,9 @@ impl Definitions {
         let default = SliceInner(quote! {
             <#ty_slice_inner_ref as std::default::Default>::default()
         });
-        let expr_body_default = self
-            .slice
-            .slice_inner_to_outer_unchecked(default, false, mutability);
+        let expr_body_default =
+            self.slice
+                .slice_inner_to_outer_unchecked(default, Safety::Safe, mutability);
 
         quote! {
             impl std::default::Default for #ty_slice_ref {
@@ -425,7 +425,7 @@ impl CustomType {
     fn slice_inner_to_outer_unchecked(
         &self,
         expr: SliceInner<impl ToTokens>,
-        is_unsafe_context: bool,
+        context_safety: Safety,
         mutability: Mutability,
     ) -> Slice<TokenStream> {
         let ty_slice_inner_ptr = mutability.make_ptr(self.inner_type());
@@ -434,11 +434,7 @@ impl CustomType {
         let base = mutability.make_ref(quote! {
             *(#expr as #ty_slice_inner_ptr as #ty_slice_ptr)
         });
-        if is_unsafe_context {
-            Slice(base)
-        } else {
-            Slice(quote! { unsafe { #base } })
-        }
+        Slice(context_safety.wrap_unsafe_expr(base))
     }
 
     /// Returns the expression converted to an owned type without validation.
