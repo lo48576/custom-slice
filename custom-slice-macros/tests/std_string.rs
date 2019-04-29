@@ -74,6 +74,7 @@ custom_slice_macros::define_slice_types_pair! {
     /// See <https://doc.rust-lang.org/stable/std/string/struct.String.html>.
     #[derive(Default)]
     #[custom_slice(owned)]
+    #[custom_slice(derive(BorrowMut))]
     #[custom_slice(new_unchecked = "pub unsafe fn from_utf8_unchecked")]
     #[custom_slice(new_checked = "pub fn from_utf8")]
     #[custom_slice(error(type = "FromUtf8Error", map = "FromUtf8Error::new"))]
@@ -149,4 +150,12 @@ fn borrow_and_to_owned() {
     let string = StdString::default();
     let s: &StdStr = string.borrow();
     let _: StdString = s.to_owned();
+}
+
+#[test]
+fn borrow_mut() {
+    use std::borrow::BorrowMut;
+
+    let mut string = StdString::default();
+    let _: &mut StdStr = <StdString as BorrowMut<StdStr>>::borrow_mut(&mut string);
 }
