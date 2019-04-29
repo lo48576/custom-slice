@@ -11,6 +11,7 @@ use crate::{
     codegen::{
         expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{Mutability, Safety},
+        traits,
     },
 };
 
@@ -52,10 +53,8 @@ impl Definitions {
                 #owned_methods
             });
         }
-        {
-            let to_owned_items = self.impl_to_owned();
-            items.push(quote! { #to_owned_items });
-        }
+        items.push(traits::slice::impl_to_owned(self));
+        items.push(traits::owned::impl_borrow(self, Mutability::Constant));
         {
             let slice_impls = self.impl_derives_for_slice();
             items.extend(slice_impls);
@@ -276,37 +275,6 @@ impl Definitions {
         Some(new_fn)
     }
 
-    /// Implements `Borrowed` and `ToOwned`.
-    fn impl_to_owned(&self) -> TokenStream {
-        let ty_slice = self.slice.outer_type();
-        let ty_owned = self.owned.outer_type();
-
-        let expr_body_borrow = self.slice.slice_inner_to_outer_unchecked(
-            Owned(quote! { self }).to_slice_inner_ref(self),
-            Safety::Safe,
-            Mutability::Constant,
-        );
-        let expr_body_to_owned = self
-            .owned
-            .owned_inner_to_outer_unchecked(Slice(quote! { self }).to_owned_inner(self));
-
-        quote! {
-            impl std::borrow::Borrow<#ty_slice> for #ty_owned {
-                fn borrow(&self) -> &#ty_slice {
-                    #expr_body_borrow
-                }
-            }
-
-            impl std::borrow::ToOwned for #ty_slice {
-                type Owned = #ty_owned;
-
-                fn to_owned(&self) -> Self::Owned {
-                    #expr_body_to_owned
-                }
-            }
-        }
-    }
-
     /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
     /// the slice type.
     fn impl_derives_for_slice<'a>(&'a self) -> impl Iterator<Item = TokenStream> + 'a {
@@ -408,7 +376,7 @@ impl CustomType {
     }
 
     /// Returns the inner field name or the index.
-    fn field_name(&self) -> TokenStream {
+    pub(crate) fn field_name(&self) -> TokenStream {
         self.inner_field
             .ident
             .as_ref()

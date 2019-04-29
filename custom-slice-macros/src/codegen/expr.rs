@@ -17,10 +17,12 @@ impl<T> Owned<T> {
 }
 
 impl<T: ToTokens> Owned<T> {
+    #[allow(dead_code)]
     pub(crate) fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream> {
         self.to_owned_inner(defs).to_slice_inner_ref(defs)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
         OwnedInner(defs.owned().inner_expr(self))
     }
@@ -76,11 +78,13 @@ impl<T: ToTokens> ToTokens for Slice<T> {
 }
 
 impl<T: ToTokens> Slice<T> {
+    #[allow(dead_code)]
     pub(crate) fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream> {
         let inner = defs.slice().inner_expr(self);
         SliceInner(quote! { &#inner })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
         self.to_slice_inner_ref(defs).to_owned_inner(defs)
     }
