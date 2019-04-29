@@ -310,8 +310,8 @@ impl Definitions {
         self.slice.attrs.derives().map(move |derive| {
             let derive = derive.to_string();
             match derive.as_str() {
-                "DefaultRef" => self.impl_slice_default(false),
-                "DefaultRefMut" => self.impl_slice_default(true),
+                "DefaultRef" => self.impl_slice_default(Mutability::Constant),
+                "DefaultRefMut" => self.impl_slice_default(Mutability::Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })
@@ -329,24 +329,19 @@ impl Definitions {
     }
 
     /// Implements `Default` for slice type.
-    fn impl_slice_default(&self, mutable: bool) -> TokenStream {
-        let ty_slice = self.slice.outer_type();
-        let ty_slice_inner = self.slice.inner_type();
+    fn impl_slice_default(&self, mutability: Mutability) -> TokenStream {
+        let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
+        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
 
-        let mut_ = if mutable { Some(quote! { mut }) } else { None };
         let default = SliceInner(quote! {
-            <&#mut_ #ty_slice_inner as std::default::Default>::default()
+            <#ty_slice_inner_ref as std::default::Default>::default()
         });
-        let expr_body_default = if mutable {
-            self.slice
-                .slice_inner_to_outer_unchecked(default, false, Mutability::Mutable)
-        } else {
-            self.slice
-                .slice_inner_to_outer_unchecked(default, false, Mutability::Constant)
-        };
+        let expr_body_default = self
+            .slice
+            .slice_inner_to_outer_unchecked(default, false, mutability);
 
         quote! {
-            impl std::default::Default for &#mut_ #ty_slice {
+            impl std::default::Default for #ty_slice_ref {
                 fn default() -> Self {
                     #expr_body_default
                 }
