@@ -12,7 +12,7 @@ pub(crate) trait SliceLikeExpression {
     fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream>;
 }
 
-/// An expression of a owned type.
+/// An expression of a owned type (such as `String` for `String`).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Owned<T>(pub T);
 
@@ -39,7 +39,7 @@ impl<T: ToTokens> SliceLikeExpression for Owned<T> {
     }
 }
 
-/// An expression of a owned inner type.
+/// An expression of a owned inner type (such as `Vec<u8>` for `String`).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct OwnedInner<T>(pub T);
 
@@ -69,7 +69,7 @@ impl<T: ToTokens> SliceLikeExpression for OwnedInner<T> {
     }
 }
 
-/// An expression of a slice type.
+/// An expression of a slice type (such as `&str` for `&str`).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Slice<T>(pub T);
 
@@ -97,7 +97,7 @@ impl<T: ToTokens> SliceLikeExpression for Slice<T> {
     }
 }
 
-/// An expression of a slice inner type.
+/// An expression of a slice inner type (such as `&[u8]` for `&str`).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SliceInner<T>(pub T);
 
