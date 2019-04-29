@@ -2,7 +2,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{Attribute, Expr, Ident, ItemFn, Lit, Meta, NestedMeta, Type};
+use syn::{Attribute, Expr, Ident, ItemFn, Lit, Meta, MetaNameValue, NestedMeta, Type};
 
 /// Special item types.
 #[derive(Debug, Clone, Copy)]
@@ -52,46 +52,39 @@ impl CustomSliceAttrs {
         None
     }
 
-    fn get_sublevel_meta<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a NestedMeta> + 'a {
+    /// Returns `[foo, bar, ..]` of `#[custom_slice(name(foo, bar, ..))]`.
+    fn lists<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a NestedMeta> + 'a {
+        self.custom_meta
+            .iter()
+            .filter_map(move |nested_meta| match nested_meta {
+                NestedMeta::Meta(Meta::List(list)) if list.ident == name => Some(list),
+                _ => None,
+            })
+            .flat_map(|list| list.nested.iter())
+    }
+
+    /// Returns `foo=bar, ..` of `#[custom_slice(foo = bar)]`.
+    fn namevalues<'a>(&'a self) -> impl Iterator<Item = &'a MetaNameValue> + 'a {
         self.custom_meta
             .iter()
             .filter_map(|nested_meta| match nested_meta {
-                NestedMeta::Meta(meta) => Some(meta),
+                NestedMeta::Meta(Meta::NameValue(meta)) => Some(meta),
                 _ => None,
             })
-            .filter_map(|meta| match meta {
-                Meta::List(list) => Some(list),
-                _ => None,
-            })
-            .filter(move |list| list.ident == name)
-            .flat_map(|list| list.nested.iter())
     }
 
     /// Returns an iterator of identifiers to be `derive`d.
     pub(crate) fn derives<'a>(&'a self) -> impl Iterator<Item = &'a Ident> + 'a {
-        self.get_sublevel_meta("derive")
+        self.lists("derive")
             .filter_map(|nested_meta| match nested_meta {
-                NestedMeta::Meta(meta) => Some(meta),
-                _ => None,
-            })
-            .filter_map(|meta| match meta {
-                Meta::Word(ident) => Some(ident),
+                NestedMeta::Meta(Meta::Word(ident)) => Some(ident),
                 _ => None,
             })
     }
 
     /// Returns value part of name-value meta.
     fn get_nv_value<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Lit> + 'a {
-        self.custom_meta
-            .iter()
-            .filter_map(|nested_meta| match nested_meta {
-                NestedMeta::Meta(meta) => Some(meta),
-                _ => None,
-            })
-            .filter_map(|meta| match meta {
-                Meta::NameValue(nv) => Some(nv),
-                _ => None,
-            })
+        self.namevalues()
             .filter(move |nv| nv.ident == name)
             .map(|nv| &nv.lit)
     }
@@ -106,17 +99,11 @@ impl CustomSliceAttrs {
     }
 
     fn get_error_conf<'a>(&'a self, key: &'a str) -> impl Iterator<Item = &'a Lit> + 'a {
-        self.get_sublevel_meta("error")
-            .filter_map(|nested_meta| match nested_meta {
-                NestedMeta::Meta(meta) => Some(meta),
+        self.lists("error")
+            .filter_map(move |nested_meta| match nested_meta {
+                NestedMeta::Meta(Meta::NameValue(nv)) if nv.ident == key => Some(&nv.lit),
                 _ => None,
             })
-            .filter_map(|meta| match meta {
-                Meta::NameValue(nv) => Some(nv),
-                _ => None,
-            })
-            .filter(move |nv| nv.ident == key)
-            .map(|nv| &nv.lit)
     }
 
     pub(crate) fn get_error_type(&self) -> Result<Option<Type>, syn::Error> {
