@@ -52,7 +52,10 @@ fn default() {
 
 #[test]
 fn new() {
-    assert!(LowerAsciiString::new("hello".to_owned()).is_ok());
+    {
+        let res: Result<LowerAsciiString, Error> = LowerAsciiString::new("hello".to_owned());
+        assert!(res.is_ok());
+    }
     {
         let res: Result<&LowerAsciiStr, Error> = LowerAsciiStr::new("hello");
         assert!(res.is_ok());

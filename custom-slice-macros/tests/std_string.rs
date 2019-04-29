@@ -115,7 +115,10 @@ fn default() {
 
 #[test]
 fn new_checked() {
-    assert!(StdString::from_utf8(b"Hello".to_vec()).is_ok());
+    {
+        let res: Result<StdString, FromUtf8Error> = StdString::from_utf8(b"Hello".to_vec());
+        assert!(res.is_ok());
+    }
     {
         let res: Result<&StdStr, Utf8Error> = StdStr::from_utf8(b"Hello");
         assert!(res.is_ok());
