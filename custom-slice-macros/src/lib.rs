@@ -7,6 +7,7 @@ use proc_macro::TokenStream;
 use crate::defs::Definitions;
 
 pub(crate) mod attrs;
+pub(crate) mod codegen;
 pub(crate) mod defs;
 
 #[proc_macro]

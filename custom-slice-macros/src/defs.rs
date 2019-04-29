@@ -6,7 +6,10 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
 
-use crate::attrs::CustomSliceAttrs;
+use crate::{
+    attrs::CustomSliceAttrs,
+    codegen::expr::{Owned, OwnedInner, Slice, SliceInner, SliceLikeExpression},
+};
 
 use self::builder::{Builder, LoadError};
 
@@ -67,6 +70,14 @@ impl Definitions {
         Builder::try_from(file)?.build()
     }
 
+    pub(crate) fn slice(&self) -> &CustomType {
+        &self.slice
+    }
+
+    pub(crate) fn owned(&self) -> &CustomType {
+        &self.owned
+    }
+
     /// Implements methods for the slice type.
     fn impl_methods_for_slice(&self) -> TokenStream {
         let new_unchecked =
@@ -101,13 +112,13 @@ impl Definitions {
         attr_name: &str,
         mutability: Mutability,
     ) -> Option<ItemFn> {
-        let arg_name = &quote! { _v };
+        let arg_name = SliceInner(quote! { _v });
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
 
         let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
         let mut new_fn = fn_prefix
-            .build_item(arg_name, ty_slice_inner_ref, ty_slice_ref, quote! {})
+            .build_item(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote! {})
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let block = self.slice.slice_inner_to_outer_unchecked(
             arg_name,
@@ -125,7 +136,7 @@ impl Definitions {
     ) -> Option<ItemFn> {
         let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
 
-        let arg_name = &quote! { _v };
+        let arg_name = SliceInner(quote! { _v });
         let error_var = &quote! { _e };
 
         let ty_error = self
@@ -137,7 +148,7 @@ impl Definitions {
         let mapped_error = self
             .slice
             .attrs
-            .get_map_error(error_var, arg_name)
+            .get_map_error(error_var, &arg_name)
             .expect("Failed to parse `map_error`")
             .map(|map| quote! { #map })
             .unwrap_or_else(|| error_var.clone());
@@ -155,14 +166,14 @@ impl Definitions {
 
         let mut new_fn = fn_prefix
             .build_item(
-                arg_name,
+                &arg_name,
                 ty_slice_inner_ref,
                 quote! { std::result::Result<#ty_slice_ref, #ty_error> },
                 quote! {},
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let unsafe_expr = self.slice.slice_inner_to_outer_unchecked(
-            arg_name,
+            arg_name.as_ref(),
             new_fn.unsafety.is_some(),
             mutability,
         );
@@ -199,13 +210,13 @@ impl Definitions {
         let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
 
         let ty_owned_inner = self.owned.inner_type();
-        let arg_name = &quote! { _v };
+        let arg_name = OwnedInner(quote! { _v });
         let new_fn = fn_prefix
             .build_item(
-                arg_name,
+                &arg_name,
                 ty_owned_inner,
                 quote! { Self },
-                self.owned.owned_inner_to_outer_unchecked(arg_name),
+                self.owned.owned_inner_to_outer_unchecked(arg_name.as_ref()),
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         Some(new_fn)
@@ -214,7 +225,7 @@ impl Definitions {
     fn impl_owned_constructor_checked(&self, attr_name: &str) -> Option<ItemFn> {
         let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
 
-        let arg_name = &quote! { _v };
+        let arg_name = OwnedInner(quote! { _v });
         let error_var = &quote! { _e };
 
         let ty_error = self
@@ -226,7 +237,7 @@ impl Definitions {
         let mapped_error = self
             .owned
             .attrs
-            .get_map_error(error_var, arg_name)
+            .get_map_error(error_var, &arg_name)
             .expect("Failed to parse `map_error`")
             .map(|map| quote! { #map })
             .unwrap_or_else(|| error_var.clone());
@@ -243,19 +254,17 @@ impl Definitions {
 
         let mut new_fn = fn_prefix
             .build_item(
-                arg_name,
+                &arg_name,
                 ty_owned_inner,
                 quote! { std::result::Result<Self, #ty_error> },
                 quote! {},
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let val_expr = self.owned.owned_inner_to_outer_unchecked(arg_name);
+        let val_expr = self.owned.owned_inner_to_outer_unchecked(arg_name.as_ref());
         let validate_fn = validator.name();
-        let ty_slice_inner = self.slice.inner_type();
+        let expr_slice_inner_ref = OwnedInner(arg_name).to_slice_inner_expr(self);
         let block = quote! {{
-            match #validate_fn(
-                <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&#arg_name)
-            ) {
+            match #validate_fn(#expr_slice_inner_ref) {
                 Ok(_) => Ok(#val_expr),
                 Err(#error_var) => Err(#mapped_error),
             }
@@ -267,18 +276,16 @@ impl Definitions {
     /// Implements `Borrowed` and `ToOwned`.
     fn impl_to_owned(&self) -> TokenStream {
         let ty_slice = self.slice.outer_type();
-        let ty_slice_inner = self.slice.inner_type();
-        let expr_slice_inner = self.slice.inner_expr(quote! { self });
         let ty_owned = self.owned.outer_type();
-        let ty_owned_inner = self.owned.inner_type();
-        let expr_owned_inner = self.owned.inner_expr(quote! { self });
 
-        let expr_body_borrow = self.slice.slice_inner_to_outer_unchecked(quote! {
-            <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&#expr_owned_inner)
-        }, false, Mutability::Constant);
-        let expr_body_to_owned = self.owned.owned_inner_to_outer_unchecked(quote! {
-            <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&#expr_slice_inner)
-        });
+        let expr_body_borrow = self.slice.slice_inner_to_outer_unchecked(
+            Owned(quote! { self }).to_slice_inner_expr(self),
+            false,
+            Mutability::Constant,
+        );
+        let expr_body_to_owned = self
+            .owned
+            .owned_inner_to_outer_unchecked(Slice(quote! { self }).to_owned_inner_expr(self));
 
         quote! {
             impl std::borrow::Borrow<#ty_slice> for #ty_owned {
@@ -327,9 +334,9 @@ impl Definitions {
         let ty_slice_inner = self.slice.inner_type();
 
         let mut_ = if mutable { Some(quote! { mut }) } else { None };
-        let default = quote! {
+        let default = SliceInner(quote! {
             <&#mut_ #ty_slice_inner as std::default::Default>::default()
-        };
+        });
         let expr_body_default = if mutable {
             self.slice
                 .slice_inner_to_outer_unchecked(default, false, Mutability::Mutable)
@@ -393,12 +400,12 @@ impl CustomType {
     }
 
     /// Returns the outer type.
-    fn outer_type(&self) -> &Ident {
+    pub(crate) fn outer_type(&self) -> &Ident {
         &self.item.ident
     }
 
     /// Returns the inner type.
-    fn inner_type(&self) -> &Type {
+    pub(crate) fn inner_type(&self) -> &Type {
         &self.inner_field.ty
     }
 
@@ -419,10 +426,10 @@ impl CustomType {
     /// Returns the expression converted to a slice type without validation.
     fn slice_inner_to_outer_unchecked(
         &self,
-        expr: impl ToTokens,
+        expr: SliceInner<impl ToTokens>,
         is_unsafe_context: bool,
         mutability: Mutability,
-    ) -> TokenStream {
+    ) -> Slice<TokenStream> {
         let ty_slice_inner_ptr = mutability.make_ptr(self.inner_type());
         let ty_slice_ptr = mutability.make_ptr(self.outer_type());
         // Type: &#ty_slice
@@ -430,20 +437,23 @@ impl CustomType {
             *(#expr as #ty_slice_inner_ptr as #ty_slice_ptr)
         });
         if is_unsafe_context {
-            base
+            Slice(base)
         } else {
-            quote! { unsafe { #base } }
+            Slice(quote! { unsafe { #base } })
         }
     }
 
     /// Returns the expression converted to an owned type without validation.
-    fn owned_inner_to_outer_unchecked(&self, expr: impl ToTokens) -> TokenStream {
+    fn owned_inner_to_outer_unchecked(
+        &self,
+        expr: OwnedInner<impl ToTokens>,
+    ) -> Owned<TokenStream> {
         let ty_owned = self.outer_type();
         let field_owned = self.field_name();
         // Type: #ty_owned
-        quote! {
+        Owned(quote! {
             #ty_owned { #field_owned: #expr }
-        }
+        })
     }
 }
 
