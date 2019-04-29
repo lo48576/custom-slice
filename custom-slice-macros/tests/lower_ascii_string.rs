@@ -18,6 +18,7 @@ custom_slice_macros::define_slice_types_pair! {
     /// A string which contains only lower ascii characters.
     #[derive(Default)]
     #[custom_slice(owned)]
+    #[custom_slice(derive(Deref, DerefMut))]
     #[custom_slice(new_unchecked = "unsafe fn new_unchecked")]
     #[custom_slice(new_checked = "pub fn new")]
     #[custom_slice(error(type = "Error"))]
@@ -92,4 +93,20 @@ fn borrow_and_to_owned() {
     let string = LowerAsciiString::default();
     let s: &LowerAsciiStr = string.borrow();
     let _: LowerAsciiString = s.to_owned();
+}
+
+#[test]
+fn deref() {
+    use std::ops::Deref;
+
+    let string = LowerAsciiString::default();
+    let _: &LowerAsciiStr = <LowerAsciiString as Deref>::deref(&string);
+}
+
+#[test]
+fn deref_mut() {
+    use std::ops::DerefMut;
+
+    let mut string = LowerAsciiString::default();
+    let _: &mut LowerAsciiStr = <LowerAsciiString as DerefMut>::deref_mut(&mut string);
 }

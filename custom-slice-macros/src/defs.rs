@@ -236,9 +236,12 @@ impl Definitions {
     /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
     /// the owned type.
     fn impl_derives_for_owned<'a>(&'a self) -> impl Iterator<Item = TokenStream> + 'a {
-        self.owned.attrs.derives().map(|derive| {
+        self.owned.attrs.derives().map(move |derive| {
             let derive = derive.to_string();
             match derive.as_str() {
+                "BorrowMut" => traits::owned::impl_borrow(self, Mutable),
+                "Deref" => traits::owned::impl_deref(self, Constant),
+                "DerefMut" => traits::owned::impl_deref(self, Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })

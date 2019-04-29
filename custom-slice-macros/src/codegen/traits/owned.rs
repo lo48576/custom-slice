@@ -52,3 +52,51 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
         }
     }
 }
+
+/// Implements `Deref` or `DerefMut`.
+pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
+    let ty_owned = defs.owned().outer_type();
+
+    let trait_deref = match mutability.into() {
+        DynMutability::Constant => quote! { std::ops::Deref },
+        DynMutability::Mutable => quote! { std::ops::DerefMut },
+    };
+    let fn_deref = match mutability.into() {
+        DynMutability::Constant => quote! { deref },
+        DynMutability::Mutable => quote! { deref_mut },
+    };
+
+    // `&Owned` -> `&OwnedInner` -> `&SliceInner` -> `&Slice`.
+    let owned_inner_ref = {
+        let owned_field = defs.owned().field_name();
+        mutability.make_ref(quote! { self.#owned_field })
+    };
+    let slice_inner_ref = {
+        let ty_owned_inner = defs.owned().inner_type();
+        SliceInner::new(
+            quote! {
+                <#ty_owned_inner as #trait_deref>::#fn_deref(#owned_inner_ref)
+            },
+            mutability,
+        )
+    };
+    let body = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
+
+    let ty_slice = defs.slice().outer_type();
+    let target = match mutability.into() {
+        DynMutability::Constant => quote! { type Target = #ty_slice; },
+        DynMutability::Mutable => quote! {},
+    };
+
+    let self_ref = mutability.make_ref(quote! { self });
+    let ty_slice_ref = mutability.make_ref(&ty_slice);
+    quote! {
+        impl #trait_deref for #ty_owned {
+            #target
+
+            fn #fn_deref(#self_ref) -> #ty_slice_ref {
+                #body
+            }
+        }
+    }
+}
