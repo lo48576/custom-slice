@@ -1,5 +1,6 @@
 //! Attributes.
 
+use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{Attribute, Expr, Ident, ItemFn, Lit, Meta, NestedMeta, Type};
 
@@ -128,25 +129,29 @@ impl CustomSliceAttrs {
             .transpose()
     }
 
-    pub(crate) fn get_map_error(
+    pub(crate) fn get_mapped_error(
         &self,
         error_var: impl ToTokens,
         arg_name: impl ToTokens,
-    ) -> Result<Option<Expr>, syn::Error> {
-        let error_var = error_var.into_token_stream().to_string();
+    ) -> Result<TokenStream, syn::Error> {
+        let error_var_s = (&error_var).into_token_stream().to_string();
         let arg_name = arg_name.into_token_stream().to_string();
         self.get_error_conf("map")
             .filter_map(|lit| match lit {
                 Lit::Str(ref s) => Some(syn::parse_str::<Expr>(&format!(
                     "{}({}, {})",
                     s.value(),
-                    error_var,
+                    error_var_s,
                     arg_name,
                 ))),
                 _ => None,
             })
             .next()
             .transpose()
+            .map(|toks| match toks {
+                Some(v) => v.into_token_stream(),
+                None => error_var.into_token_stream(),
+            })
     }
 }
 

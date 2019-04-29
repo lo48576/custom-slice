@@ -138,10 +138,8 @@ impl Definitions {
         let mapped_error = self
             .slice
             .attrs
-            .get_map_error(error_var, &arg_name)
-            .expect("Failed to parse `map_error`")
-            .map(|map| quote! { #map })
-            .unwrap_or_else(|| error_var.clone());
+            .get_mapped_error(error_var, &arg_name)
+            .expect("Failed to parse `map_error`");
 
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
@@ -223,10 +221,8 @@ impl Definitions {
         let mapped_error = self
             .owned
             .attrs
-            .get_map_error(error_var, &arg_name)
-            .expect("Failed to parse `map_error`")
-            .map(|map| quote! { #map })
-            .unwrap_or_else(|| error_var.clone());
+            .get_mapped_error(error_var, &arg_name)
+            .expect("Failed to parse `map_error`");
 
         let ty_owned_inner = self.owned.inner_type();
 
