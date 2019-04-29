@@ -125,40 +125,37 @@ impl Definitions {
         mutability: impl Mutability,
     ) -> Option<ItemFn> {
         let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
-
         let arg_name = SliceInner::new(quote! { _v }, mutability);
         let error_var = &quote! { _e };
 
         let (ty_error, mapped_error) =
             get_error_ty_and_val(&self.slice.attrs, error_var, &arg_name);
 
-        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
-
-        let validator = match &self.validator {
-            Some(v) => v,
-            None => panic!(
-                "Validator should be necessary for checked constructor: attr_name = {:?}",
-                attr_name
-            ),
-        };
-
         let mut new_fn = fn_prefix
             .build_item(
                 &arg_name,
-                ty_slice_inner_ref,
+                mutability.make_ref(self.slice.inner_type()),
                 quote! { std::result::Result<#ty_slice_ref, #ty_error> },
                 quote! {},
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let expr_outer = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
-        let validate_fn = validator.name();
-        let block = quote! {{
-            match #validate_fn(#arg_name) {
-                Ok(_) => Ok(#expr_outer),
-                Err(#error_var) => Err(#mapped_error),
-            }
-        }};
+        let block = {
+            let expr_outer = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
+            let fn_validate = match &self.validator {
+                Some(v) => v.name(),
+                None => panic!(
+                    "Validator should be necessary for checked constructor: attr_name = {:?}",
+                    attr_name
+                ),
+            };
+            quote! {{
+                match #fn_validate(#arg_name) {
+                    Ok(_) => Ok(#expr_outer),
+                    Err(#error_var) => Err(#mapped_error),
+                }
+            }}
+        };
         *new_fn.block = syn::parse2(block).expect("Should never fail: valid block");
         Some(new_fn)
     }
@@ -199,41 +196,37 @@ impl Definitions {
 
     fn impl_owned_constructor_checked(&self, attr_name: &str) -> Option<ItemFn> {
         let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
-
         let arg_name = OwnedInner::new(quote! { _v });
         let error_var = &quote! { _e };
 
         let (ty_error, mapped_error) =
             get_error_ty_and_val(&self.owned.attrs, error_var, &arg_name);
 
-        let ty_owned_inner = self.owned.inner_type();
-
-        let validator = match &self.validator {
-            Some(v) => v,
-            None => panic!(
-                "Validator should be necessary for checked constructor: attr_name = {:?}",
-                attr_name
-            ),
+        let block = {
+            let val_expr = arg_name.to_owned_unchecked(self);
+            let expr_slice_inner_ref = OwnedInner::new(&arg_name).to_slice_inner_ref(self);
+            let fn_validate = match &self.validator {
+                Some(v) => v.name(),
+                None => panic!(
+                    "Validator should be necessary for checked constructor: attr_name = {:?}",
+                    attr_name
+                ),
+            };
+            quote! {{
+                match #fn_validate(#expr_slice_inner_ref) {
+                    Ok(_) => Ok(#val_expr),
+                    Err(#error_var) => Err(#mapped_error),
+                }
+            }}
         };
-
-        let mut new_fn = fn_prefix
+        let new_fn = fn_prefix
             .build_item(
-                &arg_name,
-                ty_owned_inner,
+                arg_name,
+                self.owned.inner_type(),
                 quote! { std::result::Result<Self, #ty_error> },
-                quote! {},
+                block,
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let val_expr = arg_name.to_owned_unchecked(self);
-        let validate_fn = validator.name();
-        let expr_slice_inner_ref = OwnedInner::new(arg_name).to_slice_inner_ref(self);
-        let block = quote! {{
-            match #validate_fn(#expr_slice_inner_ref) {
-                Ok(_) => Ok(#val_expr),
-                Err(#error_var) => Err(#mapped_error),
-            }
-        }};
-        *new_fn.block = syn::parse2(block).expect("Should never fail: valid block");
         Some(new_fn)
     }
 
