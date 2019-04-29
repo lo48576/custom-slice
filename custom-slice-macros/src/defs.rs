@@ -268,16 +268,16 @@ impl Definitions {
     fn impl_to_owned(&self) -> TokenStream {
         let ty_slice = self.slice.outer_type();
         let ty_slice_inner = self.slice.inner_type();
-        let field_slice = self.slice.field_name();
+        let expr_slice_inner = self.slice.inner_expr(quote! { self });
         let ty_owned = self.owned.outer_type();
         let ty_owned_inner = self.owned.inner_type();
-        let field_owned = self.owned.field_name();
+        let expr_owned_inner = self.owned.inner_expr(quote! { self });
 
         let expr_body_borrow = self.slice.slice_inner_to_outer_unchecked(quote! {
-            <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&self.#field_owned)
+            <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&#expr_owned_inner)
         }, false, Mutability::Constant);
         let expr_body_to_owned = self.owned.owned_inner_to_outer_unchecked(quote! {
-            <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&self.#field_slice)
+            <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&#expr_slice_inner)
         });
 
         quote! {
@@ -408,6 +408,12 @@ impl CustomType {
             .ident
             .as_ref()
             .map_or_else(|| quote! { 0 }, |ident| quote! { #ident })
+    }
+
+    /// Returns the inner type expression from the outer type expression
+    pub(crate) fn inner_expr(&self, outer_expr: impl ToTokens) -> TokenStream {
+        let field_name = self.field_name();
+        quote! { #outer_expr.#field_name }
     }
 
     /// Returns the expression converted to a slice type without validation.
