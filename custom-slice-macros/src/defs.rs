@@ -319,9 +319,10 @@ impl CustomType {
 
     /// Creates an item.
     fn create_item(&self) -> ItemStruct {
-        let mut item = self.item.clone();
-        item.attrs = self.attrs.raw.clone();
-        item
+        ItemStruct {
+            attrs: self.attrs.raw.clone(),
+            ..self.item.clone()
+        }
     }
 
     /// Returns the outer type.
@@ -360,9 +361,10 @@ pub(crate) struct Validator {
 impl Validator {
     /// Creates an item.
     fn create_item(&self) -> ItemFn {
-        let mut item = self.item.clone();
-        item.attrs = self.attrs.raw.clone();
-        item
+        ItemFn {
+            attrs: self.attrs.raw.clone(),
+            ..self.item.clone()
+        }
     }
 
     /// Returns function name.
