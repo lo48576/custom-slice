@@ -32,39 +32,34 @@ pub(crate) struct Definitions {
 impl Definitions {
     /// Generate tokens.
     pub(crate) fn generate(&self) -> TokenStream {
-        let mut items = Vec::new();
-        {
-            let slice_type_item = self.slice.create_item();
-            let owned_type_item = self.owned.create_item();
-            items.push(quote! {
-                #slice_type_item
-                #owned_type_item
-            });
-        }
+        let mut tokens = TokenStream::new();
+
+        // Type definitions.
+        self.slice.create_item().to_tokens(&mut tokens);
+        self.owned.create_item().to_tokens(&mut tokens);
+        // Validator function definition.
         if let Some(validator) = &self.validator {
-            let validator_item = validator.create_item();
-            items.push(quote! { #validator_item });
-        }
-        {
-            let slice_methods = self.impl_methods_for_slice();
-            let owned_methods = self.impl_methods_for_owned();
-            items.push(quote! {
-                #slice_methods
-                #owned_methods
-            });
-        }
-        items.push(traits::slice::impl_to_owned(self));
-        items.push(traits::owned::impl_borrow(self, Mutability::Constant));
-        {
-            let slice_impls = self.impl_derives_for_slice();
-            items.extend(slice_impls);
-        }
-        {
-            let owned_impls = self.impl_derives_for_owned();
-            items.extend(owned_impls);
+            validator.create_item().to_tokens(&mut tokens);
         }
 
-        quote! { #(#items)* }
+        // Methods for slice type.
+        self.impl_methods_for_slice().to_tokens(&mut tokens);
+        // Methods for owned type.
+        self.impl_methods_for_owned().to_tokens(&mut tokens);
+
+        // `ToOwned` for slice type.
+        traits::slice::impl_to_owned(self).to_tokens(&mut tokens);
+        // `Borrow` for owned type.
+        traits::owned::impl_borrow(self, Mutability::Constant).to_tokens(&mut tokens);
+
+        // std trait impls for slice types.
+        self.impl_derives_for_slice()
+            .for_each(|v| v.to_tokens(&mut tokens));
+        // std trait impls for owned types.
+        self.impl_derives_for_owned()
+            .for_each(|v| v.to_tokens(&mut tokens));
+
+        tokens
     }
 
     /// Loads a `Definitions` from the given file content.
