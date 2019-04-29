@@ -9,7 +9,7 @@ use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
 use crate::{
     attrs::CustomSliceAttrs,
     codegen::{
-        expr::{Owned, OwnedInner, Slice, SliceInner, SliceLikeExpression},
+        expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{Mutability, Safety},
     },
 };
