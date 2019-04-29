@@ -6,8 +6,10 @@ use quote::{quote, ToTokens};
 use crate::defs::Definitions;
 
 pub(crate) trait SliceLikeExpression {
-    fn to_slice_inner_expr(&self, defs: &Definitions) -> SliceInner<TokenStream>;
-    fn to_owned_inner_expr(&self, defs: &Definitions) -> OwnedInner<TokenStream>;
+    /// Returns expression of type `&SliceInner`.
+    fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream>;
+    /// Returns expression of type `OwnedInner`.
+    fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream>;
 }
 
 /// An expression of a owned type.
@@ -28,11 +30,11 @@ impl<T: ToTokens> ToTokens for Owned<T> {
 }
 
 impl<T: ToTokens> SliceLikeExpression for Owned<T> {
-    fn to_slice_inner_expr(&self, defs: &Definitions) -> SliceInner<TokenStream> {
-        self.to_owned_inner_expr(defs).to_slice_inner_expr(defs)
+    fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream> {
+        self.to_owned_inner(defs).to_slice_inner_ref(defs)
     }
 
-    fn to_owned_inner_expr(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
+    fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
         OwnedInner(defs.owned().inner_expr(self))
     }
 }
@@ -54,7 +56,7 @@ impl<T: ToTokens> ToTokens for OwnedInner<T> {
 }
 
 impl<T: ToTokens> SliceLikeExpression for OwnedInner<T> {
-    fn to_slice_inner_expr(&self, defs: &Definitions) -> SliceInner<TokenStream> {
+    fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream> {
         let ty_slice_inner = defs.slice().inner_type();
         let ty_owned_inner = defs.owned().inner_type();
         SliceInner(quote! {
@@ -62,7 +64,7 @@ impl<T: ToTokens> SliceLikeExpression for OwnedInner<T> {
         })
     }
 
-    fn to_owned_inner_expr(&self, _: &Definitions) -> OwnedInner<TokenStream> {
+    fn to_owned_inner(&self, _: &Definitions) -> OwnedInner<TokenStream> {
         OwnedInner(self.into_token_stream())
     }
 }
@@ -85,13 +87,13 @@ impl<T: ToTokens> ToTokens for Slice<T> {
 }
 
 impl<T: ToTokens> SliceLikeExpression for Slice<T> {
-    fn to_slice_inner_expr(&self, defs: &Definitions) -> SliceInner<TokenStream> {
+    fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream> {
         let inner = defs.slice().inner_expr(self);
         SliceInner(quote! { &#inner })
     }
 
-    fn to_owned_inner_expr(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
-        self.to_slice_inner_expr(defs).to_owned_inner_expr(defs)
+    fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
+        self.to_slice_inner_ref(defs).to_owned_inner(defs)
     }
 }
 
@@ -112,11 +114,11 @@ impl<T: ToTokens> ToTokens for SliceInner<T> {
 }
 
 impl<T: ToTokens> SliceLikeExpression for SliceInner<T> {
-    fn to_slice_inner_expr(&self, _: &Definitions) -> SliceInner<TokenStream> {
+    fn to_slice_inner_ref(&self, _: &Definitions) -> SliceInner<TokenStream> {
         SliceInner(self.into_token_stream())
     }
 
-    fn to_owned_inner_expr(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
+    fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
         let ty_slice_inner = defs.slice().inner_type();
         OwnedInner(quote! {
             <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&#self)

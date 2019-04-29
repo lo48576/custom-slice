@@ -265,7 +265,7 @@ impl Definitions {
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let val_expr = self.owned.owned_inner_to_outer_unchecked(arg_name.as_ref());
         let validate_fn = validator.name();
-        let expr_slice_inner_ref = OwnedInner(arg_name).to_slice_inner_expr(self);
+        let expr_slice_inner_ref = OwnedInner(arg_name).to_slice_inner_ref(self);
         let block = quote! {{
             match #validate_fn(#expr_slice_inner_ref) {
                 Ok(_) => Ok(#val_expr),
@@ -282,13 +282,13 @@ impl Definitions {
         let ty_owned = self.owned.outer_type();
 
         let expr_body_borrow = self.slice.slice_inner_to_outer_unchecked(
-            Owned(quote! { self }).to_slice_inner_expr(self),
+            Owned(quote! { self }).to_slice_inner_ref(self),
             Safety::Safe,
             Mutability::Constant,
         );
         let expr_body_to_owned = self
             .owned
-            .owned_inner_to_outer_unchecked(Slice(quote! { self }).to_owned_inner_expr(self));
+            .owned_inner_to_outer_unchecked(Slice(quote! { self }).to_owned_inner(self));
 
         quote! {
             impl std::borrow::Borrow<#ty_slice> for #ty_owned {
