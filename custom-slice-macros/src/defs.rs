@@ -10,7 +10,7 @@ use crate::{
     attrs::CustomSliceAttrs,
     codegen::{
         expr::{OwnedInner, Slice, SliceInner},
-        props::{Mutability, Safety},
+        props::{Constant, Mutability, Mutable, Safety},
         traits,
     },
 };
@@ -50,7 +50,7 @@ impl Definitions {
         // `ToOwned` for slice type.
         traits::slice::impl_to_owned(self).to_tokens(&mut tokens);
         // `Borrow` for owned type.
-        traits::owned::impl_borrow(self, Mutability::Constant).to_tokens(&mut tokens);
+        traits::owned::impl_borrow(self, Constant).to_tokens(&mut tokens);
 
         // std trait impls for slice types.
         self.impl_derives_for_slice()
@@ -77,13 +77,10 @@ impl Definitions {
 
     /// Implements methods for the slice type.
     fn impl_methods_for_slice(&self) -> Option<TokenStream> {
-        let new_unchecked =
-            self.impl_slice_constructor_unchecked("new_unchecked", Mutability::Constant);
-        let new_unchecked_mut =
-            self.impl_slice_constructor_unchecked("new_unchecked_mut", Mutability::Mutable);
-        let new_checked = self.impl_slice_constructor_checked("new_checked", Mutability::Constant);
-        let new_checked_mut =
-            self.impl_slice_constructor_checked("new_checked_mut", Mutability::Mutable);
+        let new_unchecked = self.impl_slice_constructor_unchecked("new_unchecked", Constant);
+        let new_unchecked_mut = self.impl_slice_constructor_unchecked("new_unchecked_mut", Mutable);
+        let new_checked = self.impl_slice_constructor_checked("new_checked", Constant);
+        let new_checked_mut = self.impl_slice_constructor_checked("new_checked_mut", Mutable);
 
         if new_unchecked.is_some()
             || new_unchecked_mut.is_some()
@@ -107,7 +104,7 @@ impl Definitions {
     fn impl_slice_constructor_unchecked(
         &self,
         attr_name: &str,
-        mutability: Mutability,
+        mutability: impl Mutability,
     ) -> Option<ItemFn> {
         let arg_name = SliceInner::new(quote! { _v });
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
@@ -129,7 +126,7 @@ impl Definitions {
     fn impl_slice_constructor_checked(
         &self,
         attr_name: &str,
-        mutability: Mutability,
+        mutability: impl Mutability,
     ) -> Option<ItemFn> {
         let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
 
@@ -276,8 +273,8 @@ impl Definitions {
         self.slice.attrs.derives().map(move |derive| {
             let derive = derive.to_string();
             match derive.as_str() {
-                "DefaultRef" => traits::slice::impl_default_ref(self, Mutability::Constant),
-                "DefaultRefMut" => traits::slice::impl_default_ref(self, Mutability::Mutable),
+                "DefaultRef" => traits::slice::impl_default_ref(self, Constant),
+                "DefaultRefMut" => traits::slice::impl_default_ref(self, Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })
@@ -368,7 +365,7 @@ impl CustomType {
         &self,
         expr: SliceInner<impl ToTokens>,
         context_safety: Safety,
-        mutability: Mutability,
+        mutability: impl Mutability,
     ) -> Slice<TokenStream> {
         let ty_slice_inner_ptr = mutability.make_ptr(self.inner_type());
         let ty_slice_ptr = mutability.make_ptr(self.outer_type());

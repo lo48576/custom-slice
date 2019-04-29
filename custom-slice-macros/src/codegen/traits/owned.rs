@@ -5,23 +5,23 @@ use quote::quote;
 
 use crate::{
     codegen::{
-        props::{Mutability, Safety},
+        props::{DynMutability, Mutability, Safety},
         traits::slice_inner_to_outer_unchecked,
     },
     defs::Definitions,
 };
 
 /// Implements `Borrow` or `BorrowMut`.
-pub(crate) fn impl_borrow(defs: &Definitions, mutability: Mutability) -> TokenStream {
+pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
     let ty_owned = defs.owned().outer_type();
 
-    let trait_borrow = match mutability {
-        Mutability::Constant => quote! { std::borrow::Borrow },
-        Mutability::Mutable => quote! { std::borrow::BorrowMut },
+    let trait_borrow = match mutability.into() {
+        DynMutability::Constant => quote! { std::borrow::Borrow },
+        DynMutability::Mutable => quote! { std::borrow::BorrowMut },
     };
-    let fn_borrow = match mutability {
-        Mutability::Constant => quote! { borrow },
-        Mutability::Mutable => quote! { borrow_mut },
+    let fn_borrow = match mutability.into() {
+        DynMutability::Constant => quote! { borrow },
+        DynMutability::Mutable => quote! { borrow_mut },
     };
 
     // `&Owned` -> `&OwnedInner` -> `&SliceInner` -> `&Slice`.

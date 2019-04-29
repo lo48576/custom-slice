@@ -39,7 +39,7 @@ pub(crate) fn impl_to_owned(defs: &Definitions) -> TokenStream {
 }
 
 /// Implements `Default` for `&Slice` or `&mut Slice`.
-pub(crate) fn impl_default_ref(defs: &Definitions, mutability: Mutability) -> TokenStream {
+pub(crate) fn impl_default_ref(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
     let ty_slice_ref = mutability.make_ref(defs.slice().outer_type());
     let ty_slice_inner_ref = mutability.make_ref(defs.slice().inner_type());
 

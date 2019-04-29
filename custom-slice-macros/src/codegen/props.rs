@@ -3,28 +3,71 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
+pub(crate) trait Mutability: Sized + Copy + Into<DynMutability> {
+    fn make_ref(self, following: impl ToTokens) -> TokenStream;
+    fn make_ptr(self, following: impl ToTokens) -> TokenStream;
+}
+
 /// Mutability.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Mutability {
+pub(crate) enum DynMutability {
     /// Mutable.
     Mutable,
     /// Constant.
     Constant,
 }
 
-impl Mutability {
-    pub(crate) fn make_ref(self, following: impl ToTokens) -> TokenStream {
+impl Mutability for DynMutability {
+    fn make_ref(self, following: impl ToTokens) -> TokenStream {
         match self {
-            Mutability::Mutable => quote! { &mut #following },
-            Mutability::Constant => quote! { &#following },
+            DynMutability::Mutable => Mutable.make_ref(following),
+            DynMutability::Constant => Constant.make_ref(following),
         }
     }
 
-    pub(crate) fn make_ptr(self, following: impl ToTokens) -> TokenStream {
+    fn make_ptr(self, following: impl ToTokens) -> TokenStream {
         match self {
-            Mutability::Mutable => quote! { *mut #following },
-            Mutability::Constant => quote! { *const #following },
+            DynMutability::Mutable => Mutable.make_ptr(following),
+            DynMutability::Constant => Constant.make_ptr(following),
         }
+    }
+}
+
+impl From<Mutable> for DynMutability {
+    fn from(_: Mutable) -> Self {
+        DynMutability::Mutable
+    }
+}
+
+impl From<Constant> for DynMutability {
+    fn from(_: Constant) -> Self {
+        DynMutability::Constant
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Mutable;
+
+impl Mutability for Mutable {
+    fn make_ref(self, following: impl ToTokens) -> TokenStream {
+        quote! { &mut #following }
+    }
+
+    fn make_ptr(self, following: impl ToTokens) -> TokenStream {
+        quote! { *mut #following }
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Constant;
+
+impl Mutability for Constant {
+    fn make_ref(self, following: impl ToTokens) -> TokenStream {
+        quote! { &#following }
+    }
+
+    fn make_ptr(self, following: impl ToTokens) -> TokenStream {
+        quote! { *const #following }
     }
 }
 

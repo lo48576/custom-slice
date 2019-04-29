@@ -17,7 +17,7 @@ fn slice_inner_to_outer_unchecked(
     defs: &Definitions,
     expr_inner_ref: impl ToTokens,
     context: Safety,
-    mutability: Mutability,
+    mutability: impl Mutability,
 ) -> TokenStream {
     let ty_slice_inner_ptr = mutability.make_ptr(defs.slice().inner_type());
     let ty_slice_ptr = mutability.make_ptr(defs.slice().outer_type());
