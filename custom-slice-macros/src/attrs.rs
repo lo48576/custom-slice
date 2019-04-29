@@ -60,7 +60,7 @@ impl CustomSliceAttrs {
                 NestedMeta::Meta(Meta::List(list)) if list.ident == name => Some(list),
                 _ => None,
             })
-            .flat_map(|list| list.nested.iter())
+            .flat_map(|list| &list.nested)
     }
 
     /// Returns `foo=bar, ..` of `#[custom_slice(foo = bar)]`.
@@ -71,6 +71,24 @@ impl CustomSliceAttrs {
                 NestedMeta::Meta(Meta::NameValue(meta)) => Some(meta),
                 _ => None,
             })
+    }
+
+    /// Checks whether `#[repr(transparent)]` or `#[repr(C)]` is specified.
+    pub(crate) fn is_repr_transparent_or_c(&self) -> bool {
+        self.raw
+            .iter()
+            .filter_map(|attr| attr.parse_meta().ok())
+            .filter_map(|meta| match meta {
+                Meta::List(list) => Some(list),
+                _ => None,
+            })
+            .filter(|list| list.ident == "repr")
+            .flat_map(|list| list.nested)
+            .filter_map(|nested_meta| match nested_meta {
+                NestedMeta::Meta(Meta::Word(ident)) => Some(ident),
+                _ => None,
+            })
+            .any(|ident| ident == "transparent" || ident == "C")
     }
 
     /// Returns an iterator of identifiers to be `derive`d.

@@ -72,8 +72,8 @@ custom_slice_macros::define_slice_types_pair! {
     /// Owned string.
     ///
     /// See <https://doc.rust-lang.org/stable/std/string/struct.String.html>.
-    #[custom_slice(owned)]
     #[derive(Default)]
+    #[custom_slice(owned)]
     #[custom_slice(new_unchecked = "pub unsafe fn from_utf8_unchecked")]
     #[custom_slice(new_checked = "pub fn from_utf8")]
     #[custom_slice(error(type = "FromUtf8Error", map = "FromUtf8Error::new"))]
@@ -82,9 +82,9 @@ custom_slice_macros::define_slice_types_pair! {
     /// String slice.
     ///
     /// See <https://doc.rust-lang.org/stable/std/primitive.str.html>.
+    #[repr(transparent)]
     #[custom_slice(slice)]
     #[custom_slice(derive(DefaultRef, DefaultRefMut))]
-    #[repr(transparent)]
     #[custom_slice(new_unchecked = "pub unsafe fn from_utf8_unchecked")]
     #[custom_slice(new_unchecked_mut = "pub unsafe fn from_utf8_unchecked_mut")]
     #[custom_slice(new_checked = "pub fn from_utf8")]
