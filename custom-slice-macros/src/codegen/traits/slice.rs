@@ -7,7 +7,7 @@ use crate::{
     codegen::{
         expr::{OwnedInner, SliceInner},
         props::{Mutability, Safety},
-        traits::{owned_inner_to_outer_unchecked, slice_inner_to_outer_unchecked},
+        traits::slice_inner_to_outer_unchecked,
     },
     defs::Definitions,
 };
@@ -22,7 +22,7 @@ pub(crate) fn impl_to_owned(defs: &Definitions) -> TokenStream {
         let ty_slice_inner = defs.slice().inner_type();
         OwnedInner(quote! { <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&#slice_inner) })
     };
-    let owned = owned_inner_to_outer_unchecked(defs, owned_inner);
+    let owned = owned_inner.to_owned_unchecked(defs);
 
     let ty_slice = defs.slice().outer_type();
     quote! {

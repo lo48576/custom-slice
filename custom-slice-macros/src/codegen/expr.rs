@@ -39,6 +39,7 @@ impl<T: ToTokens> ToTokens for Owned<T> {
 pub(crate) struct OwnedInner<T>(pub T);
 
 impl<T> OwnedInner<T> {
+    #[allow(dead_code)]
     pub(crate) fn as_ref(&self) -> OwnedInner<&T> {
         OwnedInner(&self.0)
     }
@@ -56,6 +57,14 @@ impl<T: ToTokens> OwnedInner<T> {
         let ty_owned_inner = defs.owned().inner_type();
         SliceInner(quote! {
             <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&#self)
+        })
+    }
+
+    pub(crate) fn to_owned_unchecked(&self, defs: &Definitions) -> Owned<TokenStream> {
+        let ty_owned = defs.owned().outer_type();
+        let field_owned = defs.owned().field_name();
+        Owned(quote! {
+            #ty_owned { #field_owned: #self }
         })
     }
 }

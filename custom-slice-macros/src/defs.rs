@@ -9,7 +9,7 @@ use syn::{Field, Fields, Ident, ItemFn, ItemStruct, Type};
 use crate::{
     attrs::CustomSliceAttrs,
     codegen::{
-        expr::{Owned, OwnedInner, Slice, SliceInner},
+        expr::{OwnedInner, Slice, SliceInner},
         props::{Mutability, Safety},
         traits,
     },
@@ -213,7 +213,7 @@ impl Definitions {
                 &arg_name,
                 ty_owned_inner,
                 quote! { Self },
-                self.owned.owned_inner_to_outer_unchecked(arg_name.as_ref()),
+                arg_name.to_owned_unchecked(self),
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         Some(new_fn)
@@ -257,7 +257,7 @@ impl Definitions {
                 quote! {},
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let val_expr = self.owned.owned_inner_to_outer_unchecked(arg_name.as_ref());
+        let val_expr = arg_name.to_owned_unchecked(self);
         let validate_fn = validator.name();
         let expr_slice_inner_ref = OwnedInner(arg_name).to_slice_inner_ref(self);
         let block = quote! {{
@@ -377,19 +377,6 @@ impl CustomType {
             *(#expr as #ty_slice_inner_ptr as #ty_slice_ptr)
         });
         Slice(context_safety.wrap_unsafe_expr(base))
-    }
-
-    /// Returns the expression converted to an owned type without validation.
-    fn owned_inner_to_outer_unchecked(
-        &self,
-        expr: OwnedInner<impl ToTokens>,
-    ) -> Owned<TokenStream> {
-        let ty_owned = self.outer_type();
-        let field_owned = self.field_name();
-        // Type: #ty_owned
-        Owned(quote! {
-            #ty_owned { #field_owned: #expr }
-        })
     }
 }
 
