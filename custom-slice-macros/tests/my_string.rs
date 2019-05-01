@@ -10,7 +10,7 @@ custom_slice_macros::define_slice_types_pair! {
 
     #[repr(transparent)]
     #[custom_slice(slice)]
-    #[custom_slice(derive(DefaultRef, DefaultRefMut))]
+    #[custom_slice(derive(DefaultRef, DefaultRefMut, DefaultBox))]
     #[custom_slice(new_unchecked = "pub fn new")]
     #[custom_slice(new_unchecked_mut = "pub fn new_mut")]
     pub struct MyStr(str);
@@ -56,4 +56,9 @@ fn deref_mut() {
 
     let mut string = MyString::default();
     let _: &mut MyStr = <MyString as DerefMut>::deref_mut(&mut string);
+}
+
+#[test]
+fn default_box() {
+    let _: Box<MyStr> = Default::default();
 }
