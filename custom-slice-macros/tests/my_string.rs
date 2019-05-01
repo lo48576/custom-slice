@@ -10,7 +10,7 @@ custom_slice_macros::define_slice_types_pair! {
 
     #[repr(transparent)]
     #[custom_slice(slice)]
-    #[custom_slice(derive(DefaultRef, DefaultRefMut, DefaultBox))]
+    #[custom_slice(derive(DefaultRef, DefaultRefMut, DefaultBox, IntoArc, IntoBox, IntoRc))]
     #[custom_slice(new_unchecked = "pub fn new")]
     #[custom_slice(new_unchecked_mut = "pub fn new_mut")]
     pub struct MyStr(str);
@@ -61,4 +61,26 @@ fn deref_mut() {
 #[test]
 fn default_box() {
     let _: Box<MyStr> = Default::default();
+}
+
+#[test]
+fn into_arc() {
+    use std::sync::Arc;
+
+    let s: &MyStr = Default::default();
+    let _: Arc<MyStr> = Arc::<MyStr>::from(s);
+}
+
+#[test]
+fn into_box() {
+    let s: &MyStr = Default::default();
+    let _: Box<MyStr> = Box::<MyStr>::from(s);
+}
+
+#[test]
+fn into_rc() {
+    use std::rc::Rc;
+
+    let s: &MyStr = Default::default();
+    let _: Rc<MyStr> = Rc::<MyStr>::from(s);
 }

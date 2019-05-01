@@ -5,8 +5,8 @@ use quote::quote;
 
 use crate::{
     codegen::{
-        expr::{OwnedInner, SliceInner},
-        props::{Mutability, Safety},
+        expr::{OwnedInner, Slice, SliceInner},
+        props::{Constant, Mutability, Safety},
         types::{SmartPtr, SmartPtrExt},
     },
     defs::Definitions,
@@ -79,6 +79,31 @@ pub(crate) fn impl_default_smartptr(defs: &Definitions, smartptr: impl SmartPtr)
     quote! {
         impl std::default::Default for #ty_smartptr_slice {
             fn default() -> Self {
+                unsafe { #expr_from_raw }
+            }
+        }
+    }
+}
+
+/// Implements `From<&Slice>` for `{Arc, Box, Rc}<Slice>`.
+pub(crate) fn impl_into_smartptr(defs: &Definitions, smartptr: impl SmartPtr) -> TokenStream {
+    let ty_slice = defs.slice().outer_type();
+    let ty_slice_inner = defs.slice().inner_type();
+    let arg_name = Slice::new(quote!(_v), Constant);
+
+    let ty_smartptr_slice = smartptr.ty(&ty_slice);
+    let expr_from_raw = {
+        let expr_smartptr_inner = {
+            let ty_smartptr_slice_inner = smartptr.ty(&ty_slice_inner);
+            let arg_inner_ref = arg_name.to_slice_inner_ref(defs);
+            quote!(<#ty_smartptr_slice_inner>::from(#arg_inner_ref))
+        };
+        let expr_into_raw_inner = smartptr.expr_into_raw(ty_slice_inner, expr_smartptr_inner);
+        smartptr.expr_from_raw(&ty_slice, quote!(#expr_into_raw_inner as *mut #ty_slice))
+    };
+    quote! {
+        impl std::convert::From<&#ty_slice> for #ty_smartptr_slice {
+            fn from(#arg_name: &#ty_slice) -> Self {
                 unsafe { #expr_from_raw }
             }
         }

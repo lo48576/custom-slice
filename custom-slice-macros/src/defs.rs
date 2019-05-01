@@ -232,6 +232,9 @@ impl Definitions {
                 "DefaultArc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Arc),
                 "DefaultBox" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Box),
                 "DefaultRc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Rc),
+                "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
+                "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
+                "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })
