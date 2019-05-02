@@ -118,6 +118,10 @@ impl Definitions {
             .to_tokens(&mut body);
         self.impl_slice_constructor_checked("new_checked_mut", Mutable)
             .to_tokens(&mut body);
+        self.impl_slice_accessor("get_ref", Constant)
+            .to_tokens(&mut body);
+        self.impl_slice_accessor("get_mut", Mutable)
+            .to_tokens(&mut body);
 
         if body.is_empty() {
             return None;
@@ -135,9 +139,9 @@ impl Definitions {
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
 
-        let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
+        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
         let mut new_fn = fn_prefix
-            .build_item(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote!())
+            .build_item_with_named_arg(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote!())
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let block = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
         *new_fn.block = parse_quote!({ #block });
@@ -149,7 +153,7 @@ impl Definitions {
         attr_name: &str,
         mutability: impl Mutability,
     ) -> Option<ItemFn> {
-        let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
+        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
         let arg_name = SliceInner::new(quote!(_v), mutability);
         let error_var = &quote!(_e);
 
@@ -158,7 +162,7 @@ impl Definitions {
 
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
         let mut new_fn = fn_prefix
-            .build_item(
+            .build_item_with_named_arg(
                 &arg_name,
                 mutability.make_ref(self.slice.inner_type()),
                 quote!(std::result::Result<#ty_slice_ref, #ty_error>),
@@ -185,6 +189,22 @@ impl Definitions {
         Some(new_fn)
     }
 
+    fn impl_slice_accessor(&self, attr_name: &str, mutability: impl Mutability) -> Option<ItemFn> {
+        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
+
+        let self_ref = mutability.make_ref(quote!(self));
+        let slice = Slice::new(quote!(self), mutability);
+        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
+        let new_fn = fn_prefix
+            .build_item_with_raw_args(
+                &self_ref,
+                ty_slice_inner_ref,
+                slice.to_slice_inner_ref(self),
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        Some(new_fn)
+    }
+
     /// Implements methods for the owned type.
     fn impl_methods_for_owned(&self) -> Option<TokenStream> {
         let mut body = TokenStream::new();
@@ -192,6 +212,17 @@ impl Definitions {
             .to_tokens(&mut body);
         self.impl_owned_constructor_checked("new_checked")
             .to_tokens(&mut body);
+        self.impl_owned_accessor("get_ref", Constant)
+            .to_tokens(&mut body);
+        self.impl_owned_accessor("get_mut", Mutable)
+            .to_tokens(&mut body);
+        if let Some(fn_prefix) = self.owned.attrs.get_fn_prefix("into_inner") {
+            let owned_inner = Owned::new(quote!(self)).to_owned_inner(self);
+            let new_fn = fn_prefix
+                .build_item_with_raw_args(quote!(self), self.owned.inner_type(), owned_inner)
+                .unwrap_or_else(|e| panic!("Failed to parse `into_inner` attribute: {}", e));
+            new_fn.to_tokens(&mut body);
+        }
 
         if body.is_empty() {
             return None;
@@ -201,12 +232,12 @@ impl Definitions {
     }
 
     fn impl_owned_constructor_unchecked(&self, attr_name: &str) -> Option<ItemFn> {
-        let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
+        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
 
         let ty_owned_inner = self.owned.inner_type();
         let arg_name = OwnedInner::new(quote!(_v));
         let new_fn = fn_prefix
-            .build_item(
+            .build_item_with_named_arg(
                 &arg_name,
                 ty_owned_inner,
                 quote!(Self),
@@ -217,7 +248,7 @@ impl Definitions {
     }
 
     fn impl_owned_constructor_checked(&self, attr_name: &str) -> Option<ItemFn> {
-        let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
+        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
         let arg_name = OwnedInner::new(quote!(_v));
         let error_var = &quote!(_e);
 
@@ -242,11 +273,27 @@ impl Definitions {
             }}
         };
         let new_fn = fn_prefix
-            .build_item(
+            .build_item_with_named_arg(
                 arg_name,
                 self.owned.inner_type(),
                 quote!(std::result::Result<Self, #ty_error>),
                 block,
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        Some(new_fn)
+    }
+
+    fn impl_owned_accessor(&self, attr_name: &str, mutability: impl Mutability) -> Option<ItemFn> {
+        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
+
+        let self_ref = mutability.make_ref(quote!(self));
+        let owned = Owned::new(quote!(self));
+        let ty_owned_inner_ref = mutability.make_ref(self.owned.inner_type());
+        let new_fn = fn_prefix
+            .build_item_with_raw_args(
+                &self_ref,
+                ty_owned_inner_ref,
+                mutability.make_ref(owned.to_owned_inner(self)),
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         Some(new_fn)

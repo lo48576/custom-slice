@@ -164,6 +164,45 @@ custom_slice_macros::define_slice_types_pair! {
 }
 ```
 
+### Accessors
+
+You can define accessors to the inner types with meaningful name.
+
+```rust
+custom_slice_macros::define_slice_types_pair! {
+    /// Owned slice.
+    // Assume `owned: Owned` and `mut owned_mut: Owned`.
+    #[custom_slice(owned)]
+    //let _: &OwnedInner = owned.get();
+    #[custom_slice(get_ref = "pub fn get")]
+    //let _: &mut OwnedInner = owned_mut.get_mut();
+    #[custom_slice(get_mut = "fn get_mut")]
+    //let _: OwnedInner = owned.into_inner();
+    #[custom_slice(into_inner = "pub fn into_inner")]
+    pub struct Owned(OwnedInner);
+
+    /// Borrowed slice.
+    // Assume `slice_ref: &Slice` and `slice_mut: &mut Slice`.
+    #[repr(transparent)]
+    #[custom_slice(slice)]
+    //let _: &SliceInner = slice_ref.get();
+    #[custom_slice(get_ref = "pub fn get")]
+    //let _: &mut SliceInner = slice_mut.get_mut();
+    #[custom_slice(get_mut = "fn get_mut")]
+    pub struct Slice(SliceInner);
+}
+```
+
+* Specify accessor names, visilibily, and unsafety.
+  All attributes below are optional.
+    + `#[custom_slice(get_ref = ..)]`: reference getter.
+        * This returns `&OwnedInner` or `&SliceInner`.
+    + `#[custom_slice(get_mut = ..)]`: mutable reference getter.
+        * This returns `&mut OwnedInner` or `&mut SliceInner`.
+    + `#[custom_slice(into_inner = ..)]`: deconstructor.
+        * This returns `OwnedInner`.
+        * This is available only for owned types.
+
 ### Deriving traits
 
 `custom_slice_macros::define_slice_types_pair!` supports generating impls which

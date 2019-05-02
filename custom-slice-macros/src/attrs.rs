@@ -107,7 +107,7 @@ impl CustomSliceAttrs {
             .map(|nv| &nv.lit)
     }
 
-    pub(crate) fn get_constructor(&self, attr_name: &str) -> Option<FnPrefix> {
+    pub(crate) fn get_fn_prefix(&self, attr_name: &str) -> Option<FnPrefix> {
         self.get_nv_value(attr_name)
             .filter_map(|lit| match lit {
                 Lit::Str(ref s) => Some(FnPrefix::from(s.value())),
@@ -195,16 +195,23 @@ pub struct FnPrefix {
 }
 
 impl FnPrefix {
-    pub(crate) fn build_item(
+    pub(crate) fn build_item_with_named_arg(
         &self,
         arg_name: impl ToTokens,
         ty_arg: impl ToTokens,
         ty_ret: impl ToTokens,
         body_expr: impl ToTokens,
     ) -> Result<ItemFn, syn::Error> {
-        let following = quote! {
-            (#arg_name: #ty_arg) -> #ty_ret { #body_expr }
-        };
+        self.build_item_with_raw_args(quote!(#arg_name: #ty_arg), ty_ret, body_expr)
+    }
+
+    pub(crate) fn build_item_with_raw_args(
+        &self,
+        raw_args: impl ToTokens,
+        ty_ret: impl ToTokens,
+        body_expr: impl ToTokens,
+    ) -> Result<ItemFn, syn::Error> {
+        let following = quote!((#raw_args) -> #ty_ret { #body_expr });
         syn::parse_str::<ItemFn>(&format!("{}{}", self.prefix, following.to_string()))
     }
 }
