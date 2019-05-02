@@ -141,7 +141,7 @@ impl Definitions {
 
         let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
         let mut new_fn = fn_prefix
-            .build_item(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote!())
+            .build_item_with_named_arg(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote!())
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let block = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
         *new_fn.block = parse_quote!({ #block });
@@ -162,7 +162,7 @@ impl Definitions {
 
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
         let mut new_fn = fn_prefix
-            .build_item(
+            .build_item_with_named_arg(
                 &arg_name,
                 mutability.make_ref(self.slice.inner_type()),
                 quote!(std::result::Result<#ty_slice_ref, #ty_error>),
@@ -196,9 +196,8 @@ impl Definitions {
         let slice = Slice::new(quote!(self), mutability);
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let new_fn = fn_prefix
-            .build_item(
+            .build_item_with_raw_args(
                 &self_ref,
-                quote!(),
                 ty_slice_inner_ref,
                 slice.to_slice_inner_ref(self),
             )
@@ -231,7 +230,7 @@ impl Definitions {
         let ty_owned_inner = self.owned.inner_type();
         let arg_name = OwnedInner::new(quote!(_v));
         let new_fn = fn_prefix
-            .build_item(
+            .build_item_with_named_arg(
                 &arg_name,
                 ty_owned_inner,
                 quote!(Self),
@@ -267,7 +266,7 @@ impl Definitions {
             }}
         };
         let new_fn = fn_prefix
-            .build_item(
+            .build_item_with_named_arg(
                 arg_name,
                 self.owned.inner_type(),
                 quote!(std::result::Result<Self, #ty_error>),
@@ -284,9 +283,8 @@ impl Definitions {
         let owned = Owned::new(quote!(self));
         let ty_owned_inner_ref = mutability.make_ref(self.owned.inner_type());
         let new_fn = fn_prefix
-            .build_item(
+            .build_item_with_raw_args(
                 &self_ref,
-                quote!(),
                 ty_owned_inner_ref,
                 mutability.make_ref(owned.to_owned_inner(self)),
             )

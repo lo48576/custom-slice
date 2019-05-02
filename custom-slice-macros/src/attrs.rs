@@ -195,23 +195,23 @@ pub struct FnPrefix {
 }
 
 impl FnPrefix {
-    // If you want to omit argument type, pass an empty token stream.
-    pub(crate) fn build_item(
+    pub(crate) fn build_item_with_named_arg(
         &self,
         arg_name: impl ToTokens,
         ty_arg: impl ToTokens,
         ty_ret: impl ToTokens,
         body_expr: impl ToTokens,
     ) -> Result<ItemFn, syn::Error> {
-        let ty_arg = ty_arg.into_token_stream();
-        let arg_part = if ty_arg.is_empty() {
-            arg_name.into_token_stream()
-        } else {
-            quote!(#arg_name: #ty_arg)
-        };
-        let following = quote! {
-            (#arg_part) -> #ty_ret { #body_expr }
-        };
+        self.build_item_with_raw_args(quote!(#arg_name: #ty_arg), ty_ret, body_expr)
+    }
+
+    pub(crate) fn build_item_with_raw_args(
+        &self,
+        raw_args: impl ToTokens,
+        ty_ret: impl ToTokens,
+        body_expr: impl ToTokens,
+    ) -> Result<ItemFn, syn::Error> {
+        let following = quote!((#raw_args) -> #ty_ret { #body_expr });
         syn::parse_str::<ItemFn>(&format!("{}{}", self.prefix, following.to_string()))
     }
 }
