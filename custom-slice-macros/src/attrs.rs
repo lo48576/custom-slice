@@ -107,7 +107,7 @@ impl CustomSliceAttrs {
             .map(|nv| &nv.lit)
     }
 
-    pub(crate) fn get_constructor(&self, attr_name: &str) -> Option<FnPrefix> {
+    pub(crate) fn get_fn_prefix(&self, attr_name: &str) -> Option<FnPrefix> {
         self.get_nv_value(attr_name)
             .filter_map(|lit| match lit {
                 Lit::Str(ref s) => Some(FnPrefix::from(s.value())),
@@ -195,6 +195,7 @@ pub struct FnPrefix {
 }
 
 impl FnPrefix {
+    // If you want to omit argument type, pass an empty token stream.
     pub(crate) fn build_item(
         &self,
         arg_name: impl ToTokens,
@@ -202,8 +203,14 @@ impl FnPrefix {
         ty_ret: impl ToTokens,
         body_expr: impl ToTokens,
     ) -> Result<ItemFn, syn::Error> {
+        let ty_arg = ty_arg.into_token_stream();
+        let arg_part = if ty_arg.is_empty() {
+            arg_name.into_token_stream()
+        } else {
+            quote!(#arg_name: #ty_arg)
+        };
         let following = quote! {
-            (#arg_name: #ty_arg) -> #ty_ret { #body_expr }
+            (#arg_part) -> #ty_ret { #body_expr }
         };
         syn::parse_str::<ItemFn>(&format!("{}{}", self.prefix, following.to_string()))
     }
