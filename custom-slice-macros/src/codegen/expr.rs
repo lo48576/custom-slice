@@ -31,9 +31,8 @@ impl<T: ToTokens> Owned<T> {
         self.to_owned_inner(defs).to_slice_inner_ref(defs)
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
-        OwnedInner(defs.owned().inner_expr(self))
+    pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<impl ToTokens> {
+        defs.expr_owned_to_inner(self)
     }
 }
 
@@ -61,8 +60,8 @@ impl<T: ToTokens> OwnedInner<T> {
         &self,
         defs: &Definitions,
     ) -> SliceInner<TokenStream, Constant> {
-        let ty_slice_inner = defs.slice().inner_type();
-        let ty_owned_inner = defs.owned().inner_type();
+        let ty_slice_inner = defs.ty_slice_inner();
+        let ty_owned_inner = defs.ty_owned_inner();
         SliceInner::new(
             quote! {
                 <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&#self)
@@ -71,12 +70,8 @@ impl<T: ToTokens> OwnedInner<T> {
         )
     }
 
-    pub(crate) fn to_owned_unchecked(&self, defs: &Definitions) -> Owned<TokenStream> {
-        let ty_owned = defs.owned().outer_type();
-        let field_owned = defs.owned().field_name();
-        Owned(quote! {
-            #ty_owned { #field_owned: #self }
-        })
+    pub(crate) fn to_owned_unchecked(&self, defs: &Definitions) -> Owned<impl ToTokens> {
+        defs.expr_owned_from_inner(self)
     }
 }
 
@@ -98,14 +93,17 @@ impl<T: ToTokens, M: Mutability> Slice<T, M> {
         Self { expr, mutability }
     }
 
+    pub(crate) fn mutability(&self) -> M {
+        self.mutability
+    }
+
     #[allow(dead_code)]
     pub(crate) fn as_ref(&self) -> Slice<&T, M> {
         Slice::new(&self.expr, self.mutability)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream, M> {
-        let inner = defs.slice().inner_expr(self);
+        let inner = defs.expr_slice_to_inner(self);
         SliceInner::new(self.mutability.make_ref(inner), self.mutability)
     }
 
@@ -134,12 +132,17 @@ impl<T: ToTokens, M: Mutability> SliceInner<T, M> {
     }
 
     #[allow(dead_code)]
+    pub(crate) fn mutability(&self) -> M {
+        self.mutability
+    }
+
+    #[allow(dead_code)]
     pub(crate) fn as_ref(&self) -> SliceInner<&T, M> {
         SliceInner::new(&self.expr, self.mutability)
     }
 
     pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
-        let ty_slice_inner = defs.slice().inner_type();
+        let ty_slice_inner = defs.ty_slice_inner();
         OwnedInner(quote! {
             <#ty_slice_inner as std::borrow::ToOwned>::to_owned(&#self)
         })
@@ -150,8 +153,8 @@ impl<T: ToTokens, M: Mutability> SliceInner<T, M> {
         defs: &Definitions,
         context: Safety,
     ) -> Slice<TokenStream, M> {
-        let ty_slice_inner_ptr = self.mutability.make_ptr(defs.slice().inner_type());
-        let ty_slice_ptr = self.mutability.make_ptr(defs.slice().outer_type());
+        let ty_slice_inner_ptr = self.mutability.make_ptr(defs.ty_slice_inner());
+        let ty_slice_ptr = self.mutability.make_ptr(defs.ty_slice());
         // Type: `&#ty_slice` or `&mut #ty_slice`.
         let base = self.mutability.make_ref(quote! {
             *(#self as #ty_slice_inner_ptr as #ty_slice_ptr)

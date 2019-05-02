@@ -50,11 +50,11 @@ pub(crate) struct Mutable;
 
 impl Mutability for Mutable {
     fn make_ref(self, following: impl ToTokens) -> TokenStream {
-        quote! { &mut #following }
+        quote!(&mut #following)
     }
 
     fn make_ptr(self, following: impl ToTokens) -> TokenStream {
-        quote! { *mut #following }
+        quote!(*mut #following)
     }
 }
 
@@ -63,11 +63,11 @@ pub(crate) struct Constant;
 
 impl Mutability for Constant {
     fn make_ref(self, following: impl ToTokens) -> TokenStream {
-        quote! { &#following }
+        quote!(&#following)
     }
 
     fn make_ptr(self, following: impl ToTokens) -> TokenStream {
-        quote! { *const #following }
+        quote!(*const #following)
     }
 }
 
@@ -96,7 +96,7 @@ impl Safety {
     /// `self` is safety of the current context.
     pub(crate) fn wrap_unsafe_expr(self, unsafe_expr: impl ToTokens) -> TokenStream {
         match self {
-            Safety::Safe => quote! { unsafe { #unsafe_expr } },
+            Safety::Safe => quote!(unsafe { #unsafe_expr }),
             Safety::Unsafe => unsafe_expr.into_token_stream(),
         }
     }
