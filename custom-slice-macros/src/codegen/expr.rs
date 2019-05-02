@@ -102,7 +102,6 @@ impl<T: ToTokens, M: Mutability> Slice<T, M> {
         Slice::new(&self.expr, self.mutability)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream, M> {
         let inner = defs.slice().inner_expr(self);
         SliceInner::new(self.mutability.make_ref(inner), self.mutability)
