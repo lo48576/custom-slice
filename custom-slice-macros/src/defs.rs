@@ -123,7 +123,7 @@ impl Definitions {
             return None;
         }
         let ty_slice = self.slice.outer_type();
-        Some(quote! { impl #ty_slice { #body } })
+        Some(quote!(impl #ty_slice { #body }))
     }
 
     fn impl_slice_constructor_unchecked(
@@ -131,13 +131,13 @@ impl Definitions {
         attr_name: &str,
         mutability: impl Mutability,
     ) -> Option<ItemFn> {
-        let arg_name = SliceInner::new(quote! { _v }, mutability);
+        let arg_name = SliceInner::new(quote!(_v), mutability);
         let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
 
         let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
         let mut new_fn = fn_prefix
-            .build_item(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote! {})
+            .build_item(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote!())
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let block = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
         *new_fn.block = parse_quote!({ #block });
@@ -150,8 +150,8 @@ impl Definitions {
         mutability: impl Mutability,
     ) -> Option<ItemFn> {
         let fn_prefix = self.slice.attrs.get_constructor(attr_name)?;
-        let arg_name = SliceInner::new(quote! { _v }, mutability);
-        let error_var = &quote! { _e };
+        let arg_name = SliceInner::new(quote!(_v), mutability);
+        let error_var = &quote!(_e);
 
         let (ty_error, mapped_error) =
             get_error_ty_and_val(&self.slice.attrs, error_var, &arg_name);
@@ -161,8 +161,8 @@ impl Definitions {
             .build_item(
                 &arg_name,
                 mutability.make_ref(self.slice.inner_type()),
-                quote! { std::result::Result<#ty_slice_ref, #ty_error> },
-                quote! {},
+                quote!(std::result::Result<#ty_slice_ref, #ty_error>),
+                quote!(),
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let block = {
@@ -197,19 +197,19 @@ impl Definitions {
             return None;
         }
         let ty_owned = self.owned.outer_type();
-        Some(quote! { impl #ty_owned { #body } })
+        Some(quote!(impl #ty_owned { #body }))
     }
 
     fn impl_owned_constructor_unchecked(&self, attr_name: &str) -> Option<ItemFn> {
         let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
 
         let ty_owned_inner = self.owned.inner_type();
-        let arg_name = OwnedInner::new(quote! { _v });
+        let arg_name = OwnedInner::new(quote!(_v));
         let new_fn = fn_prefix
             .build_item(
                 &arg_name,
                 ty_owned_inner,
-                quote! { Self },
+                quote!(Self),
                 arg_name.to_owned_unchecked(self),
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
@@ -218,8 +218,8 @@ impl Definitions {
 
     fn impl_owned_constructor_checked(&self, attr_name: &str) -> Option<ItemFn> {
         let fn_prefix = self.owned.attrs.get_constructor(attr_name)?;
-        let arg_name = OwnedInner::new(quote! { _v });
-        let error_var = &quote! { _e };
+        let arg_name = OwnedInner::new(quote!(_v));
+        let error_var = &quote!(_e);
 
         let (ty_error, mapped_error) =
             get_error_ty_and_val(&self.owned.attrs, error_var, &arg_name);
@@ -245,7 +245,7 @@ impl Definitions {
             .build_item(
                 arg_name,
                 self.owned.inner_type(),
-                quote! { std::result::Result<Self, #ty_error> },
+                quote!(std::result::Result<Self, #ty_error>),
                 block,
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
@@ -346,13 +346,13 @@ impl CustomType {
         self.inner_field
             .ident
             .as_ref()
-            .map_or_else(|| quote! { 0 }, |ident| quote! { #ident })
+            .map_or_else(|| quote!(0), ToTokens::into_token_stream)
     }
 
     /// Returns the inner type expression from the outer type expression
     pub(crate) fn inner_expr(&self, outer_expr: impl ToTokens) -> TokenStream {
         let field_name = self.field_name();
-        quote! { #outer_expr.#field_name }
+        quote!(#outer_expr.#field_name)
     }
 }
 

@@ -16,12 +16,12 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
     let ty_owned = defs.ty_owned();
 
     let trait_borrow = match mutability.into() {
-        DynMutability::Constant => quote! { std::borrow::Borrow },
-        DynMutability::Mutable => quote! { std::borrow::BorrowMut },
+        DynMutability::Constant => quote!(std::borrow::Borrow),
+        DynMutability::Mutable => quote!(std::borrow::BorrowMut),
     };
     let fn_borrow = match mutability.into() {
-        DynMutability::Constant => quote! { borrow },
-        DynMutability::Mutable => quote! { borrow_mut },
+        DynMutability::Constant => quote!(borrow),
+        DynMutability::Mutable => quote!(borrow_mut),
     };
 
     // `&Owned` -> `&OwnedInner` -> `&SliceInner` -> `&Slice`.
@@ -38,7 +38,7 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
     };
     let body: Slice<_, _> = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
 
-    let self_ref = mutability.make_ref(quote! { self });
+    let self_ref = mutability.make_ref(quote!(self));
     let ty_slice = defs.ty_slice();
     let ty_slice_ref = mutability.make_ref(&ty_slice);
     quote! {
@@ -55,12 +55,12 @@ pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> Tok
     let ty_owned = defs.ty_owned();
 
     let trait_deref = match mutability.into() {
-        DynMutability::Constant => quote! { std::ops::Deref },
-        DynMutability::Mutable => quote! { std::ops::DerefMut },
+        DynMutability::Constant => quote!(std::ops::Deref),
+        DynMutability::Mutable => quote!(std::ops::DerefMut),
     };
     let fn_deref = match mutability.into() {
-        DynMutability::Constant => quote! { deref },
-        DynMutability::Mutable => quote! { deref_mut },
+        DynMutability::Constant => quote!(deref),
+        DynMutability::Mutable => quote!(deref_mut),
     };
 
     // `&Owned` -> `&OwnedInner` -> `&SliceInner` -> `&Slice`.
@@ -78,11 +78,11 @@ pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> Tok
 
     let ty_slice = defs.ty_slice();
     let target = match mutability.into() {
-        DynMutability::Constant => quote! { type Target = #ty_slice; },
-        DynMutability::Mutable => quote! {},
+        DynMutability::Constant => quote!(type Target = #ty_slice;),
+        DynMutability::Mutable => quote!(),
     };
 
-    let self_ref = mutability.make_ref(quote! { self });
+    let self_ref = mutability.make_ref(quote!(self));
     let ty_slice_ref = mutability.make_ref(&ty_slice);
     quote! {
         impl #trait_deref for #ty_owned {
