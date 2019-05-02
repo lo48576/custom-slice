@@ -9,7 +9,7 @@ use syn::{parse_quote, Field, Fields, Ident, ItemFn, ItemStruct, Type};
 use crate::{
     attrs::CustomSliceAttrs,
     codegen::{
-        expr::{OwnedInner, SliceInner},
+        expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{Constant, Mutability, Mutable, Safety},
         traits,
         types::StdSmartPtr,
@@ -68,12 +68,43 @@ impl Definitions {
         Builder::try_from(file)?.build()
     }
 
-    pub(crate) fn slice(&self) -> &CustomType {
-        &self.slice
+    pub(crate) fn ty_owned(&self) -> impl ToTokens {
+        self.owned.outer_type().into_token_stream()
     }
 
-    pub(crate) fn owned(&self) -> &CustomType {
-        &self.owned
+    pub(crate) fn ty_owned_inner(&self) -> impl ToTokens {
+        self.owned.inner_type().into_token_stream()
+    }
+
+    pub(crate) fn ty_slice(&self) -> impl ToTokens {
+        self.slice.outer_type().into_token_stream()
+    }
+
+    pub(crate) fn ty_slice_inner(&self) -> impl ToTokens {
+        self.slice.inner_type().into_token_stream()
+    }
+
+    pub(crate) fn expr_owned_to_inner(
+        &self,
+        owned: &Owned<impl ToTokens>,
+    ) -> OwnedInner<impl ToTokens> {
+        OwnedInner::new(self.slice.inner_expr(owned))
+    }
+
+    pub(crate) fn expr_slice_to_inner<M: Mutability>(
+        &self,
+        slice: &Slice<impl ToTokens, M>,
+    ) -> SliceInner<impl ToTokens, M> {
+        SliceInner::new(self.slice.inner_expr(slice), slice.mutability())
+    }
+
+    pub(crate) fn expr_owned_from_inner(
+        &self,
+        inner: &OwnedInner<impl ToTokens>,
+    ) -> Owned<impl ToTokens> {
+        let ty_owned = self.ty_owned();
+        let field = self.owned.field_name();
+        Owned::new(quote!(#ty_owned { #field: #inner }))
     }
 
     /// Implements methods for the slice type.
@@ -256,7 +287,7 @@ impl Definitions {
 }
 
 /// Custom type definition.
-pub(crate) struct CustomType {
+struct CustomType {
     /// Item.
     item: ItemStruct,
     /// Attributes.
