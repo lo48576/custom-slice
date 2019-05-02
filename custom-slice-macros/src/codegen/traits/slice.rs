@@ -5,7 +5,7 @@ use quote::quote;
 
 use crate::{
     codegen::{
-        expr::{Owned, OwnedInner, Slice, SliceInner},
+        expr::{Owned, Slice, SliceInner},
         props::{Constant, Mutability, Safety},
         types::{SmartPtr, SmartPtrExt},
     },
@@ -17,14 +17,10 @@ pub(crate) fn impl_to_owned(defs: &Definitions) -> TokenStream {
     let ty_owned = defs.ty_owned();
 
     // `&Slice` -> `&SliceInner` -> `OwnedInner` -> `Owned`.
-    let owned_inner = {
-        let slice_inner_ref = Slice::new(quote!(self), Constant).to_slice_inner_ref(defs);
-        let ty_slice_inner = defs.ty_slice_inner();
-        OwnedInner::new(quote! {
-            <#ty_slice_inner as std::borrow::ToOwned>::to_owned(#slice_inner_ref)
-        })
-    };
-    let owned: Owned<_> = owned_inner.to_owned_unchecked(defs);
+    let owned: Owned<_> = Slice::new(quote!(self), Constant)
+        .to_slice_inner_ref(defs)
+        .to_owned_inner(defs)
+        .to_owned_unchecked(defs);
 
     let ty_slice = defs.ty_slice();
     quote! {
