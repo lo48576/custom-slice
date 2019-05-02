@@ -3,6 +3,10 @@
 [![Build Status](https://travis-ci.org/lo48576/custom-slice.svg?branch=develop)](https://travis-ci.org/lo48576/custom-slice)
 ![Minimum rustc version: 1.34](https://img.shields.io/badge/rustc-1.34+-lightgray.svg)
 
+`custom-slice-macros`:
+[![Latest version](https://img.shields.io/crates/v/custom-slice-macros.svg)](https://crates.io/crates/custom-slice-macros)
+[![Documentation](https://docs.rs/custom-slice-macros/badge.svg)](https://docs.rs/custom-slice-macros)
+
 Proc-macros to define custom slice types easily (without users writing unsafe
 codes manually).
 
