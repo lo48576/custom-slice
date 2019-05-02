@@ -9,6 +9,7 @@ custom_slice_macros::define_slice_types_pair! {
     #[custom_slice(new_unchecked = "pub fn new")]
     #[custom_slice(get_ref = "fn get")]
     #[custom_slice(get_mut = "unsafe fn get_mut")]
+    #[custom_slice(into_inner = "fn into_inner")]
     pub struct MyString(String);
 
     #[repr(transparent)]
@@ -30,6 +31,14 @@ fn get() {
     {
         let _: &str = slice.get();
     }
+}
+
+#[test]
+fn into_inner() {
+    let orig_inner: String = "Hello".to_owned();
+    let owned: MyString = MyString::new(orig_inner.clone());
+    let owned_inner = owned.into_inner();
+    assert_eq!(orig_inner, owned_inner);
 }
 
 #[test]

@@ -216,6 +216,13 @@ impl Definitions {
             .to_tokens(&mut body);
         self.impl_owned_accessor("get_mut", Mutable)
             .to_tokens(&mut body);
+        if let Some(fn_prefix) = self.owned.attrs.get_fn_prefix("into_inner") {
+            let owned_inner = Owned::new(quote!(self)).to_owned_inner(self);
+            let new_fn = fn_prefix
+                .build_item_with_raw_args(quote!(self), self.owned.inner_type(), owned_inner)
+                .unwrap_or_else(|e| panic!("Failed to parse `into_inner` attribute: {}", e));
+            new_fn.to_tokens(&mut body);
+        }
 
         if body.is_empty() {
             return None;
