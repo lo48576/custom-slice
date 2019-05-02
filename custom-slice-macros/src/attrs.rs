@@ -189,7 +189,7 @@ impl From<Vec<Attribute>> for CustomSliceAttrs {
 }
 
 #[derive(Debug, Clone)]
-pub struct FnPrefix {
+pub(crate) struct FnPrefix {
     /// Function definition without `(args...) -> Type { body }` part.
     prefix: String,
 }

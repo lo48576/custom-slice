@@ -13,22 +13,8 @@ use crate::{
 pub(crate) struct Owned<T>(T);
 
 impl<T: ToTokens> Owned<T> {
-    #[allow(dead_code)]
     pub(crate) fn new(expr: T) -> Self {
         Self(expr)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn as_ref(&self) -> Owned<&T> {
-        Owned(&self.0)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn to_slice_inner_ref(
-        &self,
-        defs: &Definitions,
-    ) -> SliceInner<TokenStream, Constant> {
-        self.to_owned_inner(defs).to_slice_inner_ref(defs)
     }
 
     pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<impl ToTokens> {
@@ -49,11 +35,6 @@ pub(crate) struct OwnedInner<T>(T);
 impl<T: ToTokens> OwnedInner<T> {
     pub(crate) fn new(expr: T) -> Self {
         Self(expr)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn as_ref(&self) -> OwnedInner<&T> {
-        OwnedInner(&self.0)
     }
 
     pub(crate) fn to_slice_inner_ref(
@@ -97,19 +78,9 @@ impl<T: ToTokens, M: Mutability> Slice<T, M> {
         self.mutability
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn as_ref(&self) -> Slice<&T, M> {
-        Slice::new(&self.expr, self.mutability)
-    }
-
     pub(crate) fn to_slice_inner_ref(&self, defs: &Definitions) -> SliceInner<TokenStream, M> {
         let inner = defs.expr_slice_to_inner(self);
         SliceInner::new(self.mutability.make_ref(inner), self.mutability)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
-        self.to_slice_inner_ref(defs).to_owned_inner(defs)
     }
 }
 
@@ -129,16 +100,6 @@ pub(crate) struct SliceInner<T, M> {
 impl<T: ToTokens, M: Mutability> SliceInner<T, M> {
     pub(crate) fn new(expr: T, mutability: M) -> Self {
         Self { expr, mutability }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn mutability(&self) -> M {
-        self.mutability
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn as_ref(&self) -> SliceInner<&T, M> {
-        SliceInner::new(&self.expr, self.mutability)
     }
 
     pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
