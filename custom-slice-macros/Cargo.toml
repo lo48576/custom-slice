@@ -1,0 +1,25 @@
+[package]
+name = "custom-slice-macros"
+version = "0.1.0"
+authors = ["YOSHIOKA Takuma <lo48576@hard-wi.red>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+description = "Utilities to define custom slice types"
+repository = "https://github.com/lo48576/custom-slice"
+keywords = []
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "0.4"
+quote = "0.6.8"
+syn = { version = "0.15.22", features = ["full"] }
+
+[badges]
+maintenance = { status = "experimental" }
+travis-ci = { repository = "lo48576/custom-slice" }
