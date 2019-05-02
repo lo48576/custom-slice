@@ -207,6 +207,40 @@ custom_slice_macros::define_slice_types_pair! {
         * This returns `OwnedInner`.
         * This is available only for owned types.
 
+### Comments and attributes for functions
+In attributes to specify functions (such as `get_ref` and `new_unchecked`), you
+can specify attributes and comments.
+
+For example:
+
+```rust
+custom_slice_macros::define_slice_types_pair! {
+    /// Owned slice.
+    #[custom_slice(owned)]
+    #[custom_slice(get_ref = "#[allow(missing_docs)] pub fn get")]
+    #[custom_slice(get_mut = "#[deny(dead_code)] fn get_mut")]
+    #[custom_slice(into_inner = "
+        /// Extracts the inner owned slice.
+        pub fn into_inner
+    ")]
+    pub struct Owned(OwnedInner);
+
+    /// Borrowed slice.
+    #[repr(transparent)]
+    #[custom_slice(slice)]
+    #[custom_slice(new_unchecked = "
+        /// Creates a new `Slice` without validation.
+        #[deprecated (since = \"0.2.0\", note = \"Use `new_checked`\")]
+        pub fn new_unchecked
+    ")]
+    #[custom_slice(new_checked = "
+        /// Creates a new `Slice` if the given value is valid.
+        pub fn new_checked
+    ")]
+    pub struct Slice(SliceInner);
+}
+```
+
 ### Deriving traits
 
 `custom_slice_macros::define_slice_types_pair!` supports generating impls which
