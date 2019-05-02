@@ -31,7 +31,6 @@ impl<T: ToTokens> Owned<T> {
         self.to_owned_inner(defs).to_slice_inner_ref(defs)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
         OwnedInner(defs.owned().inner_expr(self))
     }

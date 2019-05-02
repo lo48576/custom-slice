@@ -5,7 +5,7 @@ use quote::quote;
 
 use crate::{
     codegen::{
-        expr::SliceInner,
+        expr::{Owned, Slice, SliceInner},
         props::{DynMutability, Mutability, Safety},
     },
     defs::Definitions,
@@ -25,11 +25,8 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
     };
 
     // `&Owned` -> `&OwnedInner` -> `&SliceInner` -> `&Slice`.
-    let owned_inner_ref = {
-        let owned_field = defs.owned().field_name();
-        mutability.make_ref(quote! { self.#owned_field })
-    };
     let slice_inner_ref = {
+        let owned_inner_ref = mutability.make_ref(Owned::new(quote!(self)).to_owned_inner(defs));
         let ty_owned_inner = defs.owned().inner_type();
         let ty_slice_inner = defs.slice().inner_type();
         SliceInner::new(
@@ -39,7 +36,7 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
             mutability,
         )
     };
-    let body = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
+    let body: Slice<_, _> = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
 
     let self_ref = mutability.make_ref(quote! { self });
     let ty_slice = defs.slice().outer_type();
@@ -67,11 +64,8 @@ pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> Tok
     };
 
     // `&Owned` -> `&OwnedInner` -> `&SliceInner` -> `&Slice`.
-    let owned_inner_ref = {
-        let owned_field = defs.owned().field_name();
-        mutability.make_ref(quote! { self.#owned_field })
-    };
     let slice_inner_ref = {
+        let owned_inner_ref = mutability.make_ref(Owned::new(quote!(self)).to_owned_inner(defs));
         let ty_owned_inner = defs.owned().inner_type();
         SliceInner::new(
             quote! {
@@ -80,7 +74,7 @@ pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> Tok
             mutability,
         )
     };
-    let body = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
+    let body: Slice<_, _> = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
 
     let ty_slice = defs.slice().outer_type();
     let target = match mutability.into() {
