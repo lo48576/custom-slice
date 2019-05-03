@@ -310,6 +310,24 @@ mod slice {
     }
 
     gen_test! {
+        name: deref,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(Deref))]
+        slice: [u8],
+        slice_tests: { Deref },
+    }
+
+    gen_test! {
+        name: deref_mut,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(Deref, DerefMut))]
+        slice: [u8],
+        slice_tests: { Deref, DerefMut },
+    }
+
+    gen_test! {
         name: from_inner,
         owned: Vec<u8>,
         owned_tests: {},

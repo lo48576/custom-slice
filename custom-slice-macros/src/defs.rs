@@ -342,6 +342,8 @@ impl Definitions {
                 "DefaultRc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Rc),
                 "DefaultRef" => traits::slice::impl_default_ref(self, Constant),
                 "DefaultRefMut" => traits::slice::impl_default_ref(self, Mutable),
+                "Deref" => traits::slice::impl_deref(self, Constant),
+                "DerefMut" => traits::slice::impl_deref(self, Mutable),
                 "FromInner" => traits::slice::impl_from_inner(self, Constant),
                 "FromInnerMut" => traits::slice::impl_from_inner(self, Mutable),
                 "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
