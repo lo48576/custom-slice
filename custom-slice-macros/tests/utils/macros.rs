@@ -82,6 +82,18 @@ macro_rules! ensure_owned_traits {
             $owned_i: std::convert::From<$owned>,
         {}
     };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = PartialEq) => {
+        #[test]
+        fn partial_eq() where
+            $owned: std::cmp::PartialEq<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = PartialOrd) => {
+        #[test]
+        fn partial_ord() where
+            $owned: std::cmp::PartialOrd<$owned>,
+        {}
+    };
     (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = TryFromInner) => {
         #[test]
         fn try_from_inner() where

@@ -310,6 +310,8 @@ impl Definitions {
                 "Deref" => traits::owned::impl_deref(self, Constant),
                 "DerefMut" => traits::owned::impl_deref(self, Mutable),
                 "FromInner" => traits::owned::impl_from_inner(self),
+                "PartialEq" => traits::owned::impl_cmp(self, CmpTrait::PartialEq),
+                "PartialOrd" => traits::owned::impl_cmp(self, CmpTrait::PartialOrd),
                 "IntoInner" => traits::owned::impl_into_inner(self),
                 "TryFromInner" => traits::owned::impl_try_from_inner(self),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),

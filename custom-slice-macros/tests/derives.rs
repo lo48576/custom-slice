@@ -165,6 +165,26 @@ mod owned {
     }
 
     gen_test! {
+        name: partial_eq,
+        #[custom_slice(derive(PartialEq))]
+        owned: Vec<u8>,
+        owned_tests: { PartialEq },
+        #[derive(PartialEq)]
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: partial_ord,
+        #[custom_slice(derive(PartialEq, PartialOrd))]
+        owned: Vec<u8>,
+        owned_tests: { PartialOrd },
+        #[derive(PartialEq, PartialOrd)]
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
         name: try_from_inner,
         #[custom_slice(derive(TryFromInner))]
         #[custom_slice(error(r#type = "()"))]

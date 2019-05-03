@@ -7,7 +7,8 @@ use crate::{
     codegen::{
         expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{Constant, DynMutability, Mutability, Safety},
-        traits::OwnedToSliceTrait,
+        traits::{CmpTrait, OwnedToSliceTrait},
+        types::RefType,
     },
     defs::Definitions,
 };
@@ -84,6 +85,13 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
             }
         }
     }
+}
+
+/// Implements `PartialEq` and `PartialOrd` using comparison of `Slice` type.
+pub(crate) fn impl_cmp(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    target
+        .impl_(defs, RefType::Owned, RefType::Owned)
+        .into_token_stream()
 }
 
 /// Implements `Deref` or `DerefMut`.
