@@ -84,6 +84,28 @@ impl Definitions {
         self.slice.inner_type().into_token_stream()
     }
 
+    pub(crate) fn fn_validator(&self) -> Option<impl ToTokens> {
+        self.validator
+            .as_ref()
+            .map(|v| v.name().into_token_stream())
+    }
+
+    pub(crate) fn owned_error_ty_and_val(
+        &self,
+        error_var: impl ToTokens,
+        arg_name: OwnedInner<impl ToTokens>,
+    ) -> (syn::Type, TokenStream) {
+        get_error_ty_and_val(&self.owned.attrs, error_var, arg_name)
+    }
+
+    pub(crate) fn slice_error_ty_and_val(
+        &self,
+        error_var: impl ToTokens,
+        arg_name: SliceInner<impl ToTokens, impl Mutability>,
+    ) -> (syn::Type, TokenStream) {
+        get_error_ty_and_val(&self.slice.attrs, error_var, arg_name)
+    }
+
     pub(crate) fn expr_owned_to_inner(
         &self,
         owned: &Owned<impl ToTokens>,
@@ -154,23 +176,18 @@ impl Definitions {
         let arg_name = OwnedInner::new(quote!(_v));
         let error_var = &quote!(_e);
 
-        let (ty_error, mapped_error) =
-            get_error_ty_and_val(&self.owned.attrs, error_var, &arg_name);
+        let (ty_error, mapped_error) = self.owned_error_ty_and_val(error_var, arg_name.as_ref());
 
         let block = {
             let val_expr = arg_name.to_owned_unchecked(self);
-            let expr_slice_inner_ref = OwnedInner::new(&arg_name).to_slice_inner_ref(
-                self,
-                OwnedToSliceTrait::Borrow,
-                Constant,
-            );
-            let fn_validate = match &self.validator {
-                Some(v) => v.name(),
-                None => panic!(
+            let expr_slice_inner_ref =
+                arg_name.to_slice_inner_ref(self, OwnedToSliceTrait::Borrow, Constant);
+            let fn_validate = self.fn_validator().unwrap_or_else(|| {
+                panic!(
                     "Validator should be necessary for checked constructor: attr_name = {:?}",
                     attr_name
-                ),
-            };
+                )
+            });
             quote! {{
                 match #fn_validate(#expr_slice_inner_ref) {
                     Ok(_) => Ok(#val_expr),
@@ -255,13 +272,12 @@ impl Definitions {
         let arg_name = SliceInner::new(quote!(_v), mutability);
         let error_var = &quote!(_e);
 
-        let (ty_error, mapped_error) =
-            get_error_ty_and_val(&self.slice.attrs, error_var, &arg_name);
+        let (ty_error, mapped_error) = self.slice_error_ty_and_val(error_var, arg_name.as_ref());
 
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
         let mut new_fn = fn_prefix
             .build_item_with_named_arg(
-                &arg_name,
+                arg_name.as_ref(),
                 mutability.make_ref(self.slice.inner_type()),
                 quote!(std::result::Result<#ty_slice_ref, #ty_error>),
                 quote!(),
@@ -269,13 +285,12 @@ impl Definitions {
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
         let block = {
             let expr_outer = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
-            let fn_validate = match &self.validator {
-                Some(v) => v.name(),
-                None => panic!(
+            let fn_validate = self.fn_validator().unwrap_or_else(|| {
+                panic!(
                     "Validator should be necessary for checked constructor: attr_name = {:?}",
                     attr_name
-                ),
-            };
+                )
+            });
             parse_quote!({
                 match #fn_validate(#arg_name) {
                     Ok(_) => Ok(#expr_outer),

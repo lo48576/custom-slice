@@ -40,6 +40,10 @@ impl<T: ToTokens> OwnedInner<T> {
         Self(expr)
     }
 
+    pub(crate) fn as_ref(&self) -> OwnedInner<&T> {
+        OwnedInner::new(&self.0)
+    }
+
     pub(crate) fn to_slice_inner_ref<M: Mutability>(
         &self,
         defs: &Definitions,
@@ -106,6 +110,10 @@ pub(crate) struct SliceInner<T, M> {
 impl<T: ToTokens, M: Mutability> SliceInner<T, M> {
     pub(crate) fn new(expr: T, mutability: M) -> Self {
         Self { expr, mutability }
+    }
+
+    pub(crate) fn as_ref(&self) -> SliceInner<&T, M> {
+        SliceInner::new(&self.expr, self.mutability)
     }
 
     pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {
