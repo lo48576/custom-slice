@@ -11,7 +11,7 @@ use crate::{
     codegen::{
         expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{Constant, Mutability, Mutable, Safety},
-        traits::{self, OwnedToSliceTrait},
+        traits,
         types::StdSmartPtr,
     },
 };
@@ -176,25 +176,9 @@ impl Definitions {
         let arg_name = OwnedInner::new(quote!(_v));
         let error_var = &quote!(_e);
 
-        let (ty_error, mapped_error) = self.owned_error_ty_and_val(error_var, arg_name.as_ref());
-
-        let block = {
-            let val_expr = arg_name.to_owned_unchecked(self);
-            let expr_slice_inner_ref =
-                arg_name.to_slice_inner_ref(self, OwnedToSliceTrait::Borrow, Constant);
-            let fn_validate = self.fn_validator().unwrap_or_else(|| {
-                panic!(
-                    "Validator should be necessary for checked constructor: attr_name = {:?}",
-                    attr_name
-                )
-            });
-            quote! {{
-                match #fn_validate(#expr_slice_inner_ref) {
-                    Ok(_) => Ok(#val_expr),
-                    Err(#error_var) => Err(#mapped_error),
-                }
-            }}
-        };
+        let (expr, ty_error) =
+            traits::owned::inner_to_outer_checked(self, arg_name.as_ref(), &error_var);
+        let block = quote!({ #expr });
         let new_fn = fn_prefix
             .build_item_with_named_arg(
                 arg_name,
@@ -272,7 +256,11 @@ impl Definitions {
         let arg_name = SliceInner::new(quote!(_v), mutability);
         let error_var = &quote!(_e);
 
-        let (ty_error, mapped_error) = self.slice_error_ty_and_val(error_var, arg_name.as_ref());
+        // Context can be `unsafe` if the constructor is declared as
+        // `unsafe fn`. However, always assume as safe context here, since
+        // `unsafe` block in `unsafe fn` is redundant but does no harm.
+        let (expr, ty_error) =
+            traits::slice::inner_to_outer_checked(self, arg_name.as_ref(), error_var, Safety::Safe);
 
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
         let mut new_fn = fn_prefix
@@ -283,21 +271,7 @@ impl Definitions {
                 quote!(),
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let block = {
-            let expr_outer = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
-            let fn_validate = self.fn_validator().unwrap_or_else(|| {
-                panic!(
-                    "Validator should be necessary for checked constructor: attr_name = {:?}",
-                    attr_name
-                )
-            });
-            parse_quote!({
-                match #fn_validate(#arg_name) {
-                    Ok(_) => Ok(#expr_outer),
-                    Err(#error_var) => Err(#mapped_error),
-                }
-            })
-        };
+        let block = parse_quote!({ #expr });
         *new_fn.block = block;
         Some(new_fn)
     }
@@ -332,6 +306,7 @@ impl Definitions {
                 "Deref" => traits::owned::impl_deref(self, Constant),
                 "DerefMut" => traits::owned::impl_deref(self, Mutable),
                 "IntoInner" => traits::owned::impl_into_inner(self),
+                "TryFromInner" => traits::owned::impl_try_from_inner(self),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })
@@ -355,6 +330,8 @@ impl Definitions {
                 "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
                 "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
                 "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),
+                "TryFromInner" => traits::slice::impl_try_from_inner(self, Constant),
+                "TryFromInnerMut" => traits::slice::impl_try_from_inner(self, Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })

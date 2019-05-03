@@ -76,6 +76,12 @@ macro_rules! ensure_owned_traits {
             $owned_i: std::convert::From<$owned>,
         {}
     };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = TryFromInner) => {
+        #[test]
+        fn try_from_inner() where
+            $owned: std::convert::TryFrom<$owned_i>,
+        {}
+    };
     (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = $target:ident) => {
         compile_error!("Unknown target");
     };
@@ -161,6 +167,18 @@ macro_rules! ensure_slice_traits {
         #[test]
         fn into_rc() where
             for<'a> std::rc::Rc<$slice>: std::convert::From<&'a $slice>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = TryFromInner) => {
+        #[test]
+        fn try_from_inner() where
+            for<'a> &'a $slice: std::convert::TryFrom<&'a $slice_i>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = TryFromInnerMut) => {
+        #[test]
+        fn try_from_inner_mut() where
+            for<'a> &'a mut $slice: std::convert::TryFrom<&'a mut $slice_i>,
         {}
     };
     (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = $target:ident) => {

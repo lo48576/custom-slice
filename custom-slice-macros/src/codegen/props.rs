@@ -6,6 +6,12 @@ use quote::{quote, ToTokens};
 pub(crate) trait Mutability: Sized + Copy + Into<DynMutability> {
     fn make_ref(self, following: impl ToTokens) -> TokenStream;
     fn make_ptr(self, following: impl ToTokens) -> TokenStream;
+    // `lifetime` should include following `'` character.
+    fn make_ref_with_lifetime(
+        self,
+        following: impl ToTokens,
+        lifetime: impl ToTokens,
+    ) -> TokenStream;
 }
 
 /// Mutability.
@@ -29,6 +35,17 @@ impl Mutability for DynMutability {
         match self {
             DynMutability::Mutable => Mutable.make_ptr(following),
             DynMutability::Constant => Constant.make_ptr(following),
+        }
+    }
+
+    fn make_ref_with_lifetime(
+        self,
+        following: impl ToTokens,
+        lifetime: impl ToTokens,
+    ) -> TokenStream {
+        match self {
+            DynMutability::Mutable => Mutable.make_ref_with_lifetime(following, lifetime),
+            DynMutability::Constant => Constant.make_ref_with_lifetime(following, lifetime),
         }
     }
 }
@@ -56,6 +73,14 @@ impl Mutability for Mutable {
     fn make_ptr(self, following: impl ToTokens) -> TokenStream {
         quote!(*mut #following)
     }
+
+    fn make_ref_with_lifetime(
+        self,
+        following: impl ToTokens,
+        lifetime: impl ToTokens,
+    ) -> TokenStream {
+        quote!(&#lifetime mut #following)
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,6 +93,14 @@ impl Mutability for Constant {
 
     fn make_ptr(self, following: impl ToTokens) -> TokenStream {
         quote!(*const #following)
+    }
+
+    fn make_ref_with_lifetime(
+        self,
+        following: impl ToTokens,
+        lifetime: impl ToTokens,
+    ) -> TokenStream {
+        quote!(&#lifetime #following)
     }
 }
 

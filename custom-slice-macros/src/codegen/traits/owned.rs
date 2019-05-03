@@ -1,12 +1,12 @@
 //! Trait impls for slice types.
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 
 use crate::{
     codegen::{
         expr::{Owned, OwnedInner, Slice, SliceInner},
-        props::{DynMutability, Mutability, Safety},
+        props::{Constant, DynMutability, Mutability, Safety},
         traits::OwnedToSliceTrait,
     },
     defs::Definitions,
@@ -129,4 +129,47 @@ pub(crate) fn impl_into_inner(defs: &Definitions) -> TokenStream {
             }
         }
     }
+}
+
+/// Implements `TryFrom<OwnedInner>`.
+pub(crate) fn impl_try_from_inner(defs: &Definitions) -> TokenStream {
+    let arg_name = OwnedInner::new(quote!(_v));
+    let error_var = &quote!(_e);
+
+    let ty_owned = defs.ty_owned();
+    let ty_owned_inner = defs.ty_owned_inner();
+
+    let (body, ty_error) = inner_to_outer_checked(defs, arg_name.as_ref(), error_var);
+    quote! {
+        impl std::convert::TryFrom<#ty_owned_inner> for #ty_owned {
+            type Error = #ty_error;
+
+            fn try_from(#arg_name: #ty_owned_inner) -> std::result::Result<Self, Self::Error> {
+                #body
+            }
+        }
+    }
+}
+
+/// Returns `(expr_result_outer, ty_error)`.
+pub(crate) fn inner_to_outer_checked(
+    defs: &Definitions,
+    inner_var: OwnedInner<impl ToTokens>,
+    error_var: impl ToTokens,
+) -> (TokenStream, syn::Type) {
+    let (ty_error, mapped_error) = defs.owned_error_ty_and_val(&error_var, inner_var.as_ref());
+
+    let expr_owned = inner_var.to_owned_unchecked(defs);
+    let expr_slice_inner_ref =
+        inner_var.to_slice_inner_ref(defs, OwnedToSliceTrait::Borrow, Constant);
+    let fn_validate = defs.fn_validator().unwrap_or_else(|| {
+        panic!("Validator should be necessary for `TryFromInner` derive target")
+    });
+    let expr = quote! {
+        match #fn_validate(#expr_slice_inner_ref) {
+            Ok(_) => Ok(#expr_owned),
+            Err(#error_var) => Err(#mapped_error),
+        }
+    };
+    (expr, ty_error)
 }

@@ -36,6 +36,42 @@ macro_rules! gen_test {
             }
         }
     };
+    (
+        name: $name:ident,
+        $(#[$meta_owned:meta])* owned: $owned_inner:ty,
+        owned_tests: { $($target_owned:ident),* },
+        $(#[$meta_slice:meta])* slice: $slice_inner:ty,
+        slice_tests: { $($target_slice:ident),* },
+        validator: $ty_error:ty $body:block,
+    ) => {
+        mod $name {
+            custom_slice_macros::define_slice_types_pair! {
+                #[custom_slice(owned)]
+                $(#[$meta_owned])*
+                struct Owned($owned_inner);
+
+                #[repr(transparent)]
+                #[custom_slice(slice)]
+                $(#[$meta_slice])*
+                struct Slice($slice_inner);
+
+                #[custom_slice(validator)]
+                fn validate(_: &$slice_inner) -> Result<(), $ty_error> $body
+            }
+
+            ensure_owned_traits! {
+                owned { Owned: Vec<u8> },
+                slice { Slice: [u8] },
+                targets { $($target_owned),* }
+            }
+
+            ensure_slice_traits! {
+                owned { Owned: Vec<u8> },
+                slice { Slice: [u8] },
+                targets { $($target_slice),* }
+            }
+        }
+    };
 }
 
 mod owned {
@@ -117,6 +153,18 @@ mod owned {
         owned_tests: { IntoInner },
         slice: [u8],
         slice_tests: {},
+    }
+
+    gen_test! {
+        name: try_from_inner,
+        #[custom_slice(derive(TryFromInner))]
+        #[custom_slice(error(r#type = "()"))]
+        owned: Vec<u8>,
+        owned_tests: { TryFromInner },
+        #[custom_slice(error(r#type = "()"))]
+        slice: [u8],
+        slice_tests: {},
+        validator: () { Ok(()) },
     }
 }
 
@@ -217,5 +265,29 @@ mod slice {
         #[custom_slice(derive(IntoRc))]
         slice: [u8],
         slice_tests: { IntoRc },
+    }
+
+    gen_test! {
+        name: try_from_inner,
+        #[custom_slice(error(r#type = "()"))]
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(TryFromInner))]
+        #[custom_slice(error(r#type = "()"))]
+        slice: [u8],
+        slice_tests: { TryFromInner },
+        validator: () { Ok(()) },
+    }
+
+    gen_test! {
+        name: try_from_inner_mut,
+        #[custom_slice(error(r#type = "()"))]
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(TryFromInnerMut))]
+        #[custom_slice(error(r#type = "()"))]
+        slice: [u8],
+        slice_tests: { TryFromInnerMut },
+        validator: () { Ok(()) },
     }
 }

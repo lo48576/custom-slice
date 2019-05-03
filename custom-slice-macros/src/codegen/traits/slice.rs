@@ -1,7 +1,7 @@
 //! Trait impls for slice types.
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 
 use crate::{
     codegen::{
@@ -139,4 +139,47 @@ pub(crate) fn impl_to_owned(defs: &Definitions) -> TokenStream {
             }
         }
     }
+}
+
+/// Implements `TryFrom<SliceInner>`.
+pub(crate) fn impl_try_from_inner(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
+    let arg_name = SliceInner::new(quote!(_v), mutability);
+    let error_var = &quote!(_e);
+    let lt = quote!('a);
+
+    let ty_slice_ref = mutability.make_ref_with_lifetime(defs.ty_slice(), &lt);
+    let ty_slice_inner_ref = mutability.make_ref_with_lifetime(defs.ty_slice_inner(), &lt);
+
+    let (body, ty_error) = inner_to_outer_checked(defs, arg_name.as_ref(), error_var, Safety::Safe);
+    quote! {
+        impl<#lt> std::convert::TryFrom<#ty_slice_inner_ref> for #ty_slice_ref {
+            type Error = #ty_error;
+
+            fn try_from(#arg_name: #ty_slice_inner_ref) -> std::result::Result<Self, Self::Error> {
+                #body
+            }
+        }
+    }
+}
+
+/// Returns `(expr_result_outer, ty_error)`.
+pub(crate) fn inner_to_outer_checked(
+    defs: &Definitions,
+    inner_var: SliceInner<impl ToTokens, impl Mutability>,
+    error_var: impl ToTokens,
+    safety: Safety,
+) -> (TokenStream, syn::Type) {
+    let (ty_error, mapped_error) = defs.slice_error_ty_and_val(&error_var, inner_var.as_ref());
+
+    let expr_slice = inner_var.to_slice_unchecked(defs, safety);
+    let fn_validate = defs.fn_validator().unwrap_or_else(|| {
+        panic!("Validator should be necessary for `TryFromInner` derive target")
+    });
+    let expr = quote! {
+        match #fn_validate(#inner_var) {
+            Ok(_) => Ok(#expr_slice),
+            Err(#error_var) => Err(#mapped_error),
+        }
+    };
+    (expr, ty_error)
 }
