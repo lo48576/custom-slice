@@ -29,6 +29,7 @@ impl OwnedToSliceTrait {
             (OwnedToSliceTrait::Deref, DynMutability::Mutable) => quote!(std::ops::DerefMut),
         }
     }
+
     fn trait_path_with_param(
         self,
         ty_slice: impl ToTokens,
