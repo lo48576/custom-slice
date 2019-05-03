@@ -88,10 +88,32 @@ macro_rules! ensure_owned_traits {
             $owned: std::cmp::PartialEq<$owned>,
         {}
     };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = PartialEqBulk) => {
+        #[test]
+        fn partial_eq_bulk() where
+            $owned: std::cmp::PartialEq<$slice>,
+            $slice: std::cmp::PartialEq<$owned>,
+            for<'a> $owned: std::cmp::PartialEq<&'a $slice>,
+            for<'a> &'a $slice: std::cmp::PartialEq<$owned>,
+            for<'a> $owned: std::cmp::PartialEq<std::borrow::Cow<'a, $slice>>,
+            for<'a> std::borrow::Cow<'a, $slice>: std::cmp::PartialEq<$owned>,
+        {}
+    };
     (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = PartialOrd) => {
         #[test]
         fn partial_ord() where
             $owned: std::cmp::PartialOrd<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = PartialOrdBulk) => {
+        #[test]
+        fn partial_eq_bulk() where
+            $owned: std::cmp::PartialOrd<$slice>,
+            $slice: std::cmp::PartialOrd<$owned>,
+            for<'a> $owned: std::cmp::PartialOrd<&'a $slice>,
+            for<'a> &'a $slice: std::cmp::PartialOrd<$owned>,
+            for<'a> $owned: std::cmp::PartialOrd<std::borrow::Cow<'a, $slice>>,
+            for<'a> std::borrow::Cow<'a, $slice>: std::cmp::PartialOrd<$owned>,
         {}
     };
     (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = TryFromInner) => {

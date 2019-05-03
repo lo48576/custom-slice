@@ -175,10 +175,32 @@ mod owned {
     }
 
     gen_test! {
+        name: partial_eq_bulk,
+        #[derive(PartialEq)]
+        #[custom_slice(derive(PartialEqBulk))]
+        owned: Vec<u8>,
+        owned_tests: { PartialEqBulk },
+        #[derive(PartialEq)]
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
         name: partial_ord,
         #[custom_slice(derive(PartialEq, PartialOrd))]
         owned: Vec<u8>,
         owned_tests: { PartialOrd },
+        #[derive(PartialEq, PartialOrd)]
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: partial_ord_bulk,
+        #[derive(PartialEq, PartialOrd)]
+        #[custom_slice(derive(PartialEqBulk, PartialOrdBulk))]
+        owned: Vec<u8>,
+        owned_tests: { PartialOrdBulk },
         #[derive(PartialEq, PartialOrd)]
         slice: [u8],
         slice_tests: {},
