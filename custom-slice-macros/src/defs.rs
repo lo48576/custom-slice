@@ -257,7 +257,8 @@ impl Definitions {
 
         let block = {
             let val_expr = arg_name.to_owned_unchecked(self);
-            let expr_slice_inner_ref = OwnedInner::new(&arg_name).to_slice_inner_ref(self);
+            let expr_slice_inner_ref =
+                OwnedInner::new(&arg_name).to_slice_inner_ref(self, Constant);
             let fn_validate = match &self.validator {
                 Some(v) => v.name(),
                 None => panic!(

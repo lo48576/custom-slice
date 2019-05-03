@@ -25,27 +25,10 @@ pub(crate) fn impl_as_ref_slice(defs: &Definitions, mutability: impl Mutability)
     };
 
     // `&Owned` -> `&OwnedInner` -> `&SliceInner` -> `&Slice`.
-    let slice_inner_ref = {
-        let trait_borrow = match mutability.into() {
-            DynMutability::Constant => quote!(std::borrow::Borrow),
-            DynMutability::Mutable => quote!(std::borrow::BorrowMut),
-        };
-        let fn_borrow = match mutability.into() {
-            DynMutability::Constant => quote!(borrow),
-            DynMutability::Mutable => quote!(borrow_mut),
-        };
-
-        let owned_inner_ref = mutability.make_ref(Owned::new(quote!(self)).to_owned_inner(defs));
-        let ty_owned_inner = defs.ty_owned_inner();
-        let ty_slice_inner = defs.ty_slice_inner();
-        SliceInner::new(
-            quote! {
-                <#ty_owned_inner as #trait_borrow<#ty_slice_inner>>::#fn_borrow(#owned_inner_ref)
-            },
-            mutability,
-        )
-    };
-    let body: Slice<_, _> = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
+    let body: Slice<_, _> = Owned::new(quote!(self))
+        .to_owned_inner(defs)
+        .to_slice_inner_ref(defs, mutability)
+        .to_slice_unchecked(defs, Safety::Safe);
 
     let self_ref = mutability.make_ref(quote!(self));
     let ty_slice = defs.ty_slice();
@@ -76,26 +59,9 @@ pub(crate) fn impl_as_ref_slice_inner(
     };
 
     // `&Owned` -> `&OwnedInner` -> `&SliceInner`.
-    let body: SliceInner<_, _> = {
-        let trait_borrow = match mutability.into() {
-            DynMutability::Constant => quote!(std::borrow::Borrow),
-            DynMutability::Mutable => quote!(std::borrow::BorrowMut),
-        };
-        let fn_borrow = match mutability.into() {
-            DynMutability::Constant => quote!(borrow),
-            DynMutability::Mutable => quote!(borrow_mut),
-        };
-
-        let owned_inner_ref = mutability.make_ref(Owned::new(quote!(self)).to_owned_inner(defs));
-        let ty_owned_inner = defs.ty_owned_inner();
-        let ty_slice_inner = defs.ty_slice_inner();
-        SliceInner::new(
-            quote! {
-                <#ty_owned_inner as #trait_borrow<#ty_slice_inner>>::#fn_borrow(#owned_inner_ref)
-            },
-            mutability,
-        )
-    };
+    let body: SliceInner<_, _> = Owned::new(quote!(self))
+        .to_owned_inner(defs)
+        .to_slice_inner_ref(defs, mutability);
 
     let self_ref = mutability.make_ref(quote!(self));
     let ty_slice_inner = defs.ty_slice_inner();
@@ -123,18 +89,10 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
     };
 
     // `&Owned` -> `&OwnedInner` -> `&SliceInner` -> `&Slice`.
-    let slice_inner_ref = {
-        let owned_inner_ref = mutability.make_ref(Owned::new(quote!(self)).to_owned_inner(defs));
-        let ty_owned_inner = defs.ty_owned_inner();
-        let ty_slice_inner = defs.ty_slice_inner();
-        SliceInner::new(
-            quote! {
-                <#ty_owned_inner as #trait_borrow<#ty_slice_inner>>::#fn_borrow(#owned_inner_ref)
-            },
-            mutability,
-        )
-    };
-    let body: Slice<_, _> = slice_inner_ref.to_slice_unchecked(defs, Safety::Safe);
+    let body: Slice<_, _> = Owned::new(quote!(self))
+        .to_owned_inner(defs)
+        .to_slice_inner_ref(defs, mutability)
+        .to_slice_unchecked(defs, Safety::Safe);
 
     let self_ref = mutability.make_ref(quote!(self));
     let ty_slice = defs.ty_slice();
