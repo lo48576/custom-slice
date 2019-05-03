@@ -263,7 +263,11 @@ custom_slice_macros::define_slice_types_pair! {
 
 The following derive targets are available:
 
-* For owned types:
+#### Derive targets for owned types
+* `std::borrow::*`
+    + `BorrowMut`:
+      `impl std::borrow::BorrowMut<Slice> for Owned { /* .. */ }`
+* `std::convert::*`
     + `AsRefSlice`:
       `impl std::convert::AsRef<Slice> for Owned { /* .. */ }`
         * Requires `AsRef<SliceInner>: OwnedInner`.
@@ -276,12 +280,6 @@ The following derive targets are available:
     + `AsMutSliceInner`:
       `impl std::convert::AsMut<SliceInner> for Owned { /* .. */ }`
         * Requires `AsMut<SliceInner>: OwnedInner`.
-    + `BorrowMut`:
-      `impl std::borrow::BorrowMut<Slice> for Owned { /* .. */ }`
-    + `Deref`:
-      `impl std::ops::Deref for Owned { type Target = Slice; /* .. */ }`
-    + `DerefMut`:
-      `impl std::ops::DerefMut for Owned { /* .. */ }`
     + `FromInner`:
       `impl std::convert::From<OwnedInner> for Owned { /* .. */ }`
         * Requires validator to be absent.
@@ -290,7 +288,14 @@ The following derive targets are available:
     + `TryFromInner`:
       `impl std::convert::TryFrom<OwnedInner> for Owned { /* .. */ }`
         * Requires validator to be present.
-* For slice types:
+* `std::ops::*`
+    + `Deref`:
+      `impl std::ops::Deref for Owned { type Target = Slice; /* .. */ }`
+    + `DerefMut`:
+      `impl std::ops::DerefMut for Owned { /* .. */ }`
+
+#### Derive targets for slice types
+* `std::convert::*`
     + `AsRefSlice`:
       `impl std::convert::AsRef<Slice> for Slice { /* .. */ }`
         * Requires `AsRef<SliceInner>: SliceInner`.
@@ -303,15 +308,6 @@ The following derive targets are available:
     + `AsMutSliceInner`:
       `impl std::convert::AsMut<SliceInner> for Slice { /* .. */ }`
         * Requires `AsMut<SliceInner>: SliceInner`.
-    + `DefaultBox`:
-      `impl std::default::Default for Box<Slice> { /* .. */ }`
-        * Requires `Box<SliceInner>: Default`.
-    + `DefaultRef`:
-      `impl std::default::Default for &Slice { /* .. */ }`
-        * Requires `&SliceInner: Default`.
-    + `DefaultRefMut`:
-      `impl std::default::Default for &mut Slice { /* .. */ }`
-        * Requires `&mut SliceInner: Default`.
     + `FromInner`:
       `impl<'a> std::convert::From<&'a SliceInner> for &'a Slice { /* .. */ }`
         * Requires validator to be absent.
@@ -333,6 +329,16 @@ The following derive targets are available:
     + `TryFromInnerMut`:
       `impl<'a> std::convert::TryFrom<&'a mut SliceInner> for &'a mut Slice { /* .. */ }`
         * Requires validator to be present.
+* `std::default::*`
+    + `DefaultBox`:
+      `impl std::default::Default for Box<Slice> { /* .. */ }`
+        * Requires `Box<SliceInner>: Default`.
+    + `DefaultRef`:
+      `impl std::default::Default for &Slice { /* .. */ }`
+        * Requires `&SliceInner: Default`.
+    + `DefaultRefMut`:
+      `impl std::default::Default for &mut Slice { /* .. */ }`
+        * Requires `&mut SliceInner: Default`.
 
 
 ## License
