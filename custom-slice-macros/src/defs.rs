@@ -312,8 +312,14 @@ impl Definitions {
                 "FromInner" => traits::owned::impl_from_inner(self),
                 "PartialEq" => traits::owned::impl_cmp(self, CmpTrait::PartialEq),
                 "PartialEqBulk" => traits::owned::impl_cmp_bulk(self, CmpTrait::PartialEq),
+                "PartialEqInnerBulk" => {
+                    traits::owned::impl_cmp_inner_bulk(self, CmpTrait::PartialEq)
+                }
                 "PartialOrd" => traits::owned::impl_cmp(self, CmpTrait::PartialOrd),
                 "PartialOrdBulk" => traits::owned::impl_cmp_bulk(self, CmpTrait::PartialOrd),
+                "PartialOrdInnerBulk" => {
+                    traits::owned::impl_cmp_inner_bulk(self, CmpTrait::PartialOrd)
+                }
                 "IntoInner" => traits::owned::impl_into_inner(self),
                 "TryFromInner" => traits::owned::impl_try_from_inner(self),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),

@@ -119,6 +119,38 @@ pub(crate) fn impl_cmp_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream
     tokens
 }
 
+/// Implements `PartialEq` and `PartialOrd` for many types.
+pub(crate) fn impl_cmp_inner_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    let mut tokens = TokenStream::new();
+    target
+        .impl_with_inner(defs, RefType::Owned, RefType::SliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::SliceInner, RefType::Owned)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Owned, RefType::RefSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::RefSliceInner, RefType::Owned)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Owned, RefType::CowSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::CowSliceInner, RefType::Owned)
+        .to_tokens(&mut tokens);
+
+    target
+        .impl_with_inner(defs, RefType::Owned, RefType::OwnedInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::OwnedInner, RefType::Owned)
+        .to_tokens(&mut tokens);
+
+    tokens
+}
+
 /// Implements `Deref` or `DerefMut`.
 pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
     let trait_deref = OwnedToSliceTrait::Deref.trait_path(mutability);

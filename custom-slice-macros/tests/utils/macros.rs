@@ -99,6 +99,19 @@ macro_rules! ensure_owned_traits {
             for<'a> std::borrow::Cow<'a, $slice>: std::cmp::PartialEq<$owned>,
         {}
     };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $slice_i:ty }, target = PartialEqInnerBulk) => {
+        #[test]
+        fn partial_eq_inner_bulk() where
+            $owned: std::cmp::PartialEq<$slice_i>,
+            $slice_i: std::cmp::PartialEq<$owned>,
+            for<'a> $owned: std::cmp::PartialEq<&'a $slice_i>,
+            for<'a> &'a $slice_i: std::cmp::PartialEq<$owned>,
+            for<'a> $owned: std::cmp::PartialEq<std::borrow::Cow<'a, $slice_i>>,
+            for<'a> std::borrow::Cow<'a, $slice_i>: std::cmp::PartialEq<$owned>,
+            $owned: std::cmp::PartialEq<$owned_i>,
+            $owned_i: std::cmp::PartialEq<$owned>,
+        {}
+    };
     (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = PartialOrd) => {
         #[test]
         fn partial_ord() where
@@ -114,6 +127,19 @@ macro_rules! ensure_owned_traits {
             for<'a> &'a $slice: std::cmp::PartialOrd<$owned>,
             for<'a> $owned: std::cmp::PartialOrd<std::borrow::Cow<'a, $slice>>,
             for<'a> std::borrow::Cow<'a, $slice>: std::cmp::PartialOrd<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $slice_i:ty }, target = PartialOrdInnerBulk) => {
+        #[test]
+        fn partial_ord_inner_bulk() where
+            $owned: std::cmp::PartialOrd<$slice_i>,
+            $slice_i: std::cmp::PartialOrd<$owned>,
+            for<'a> $owned: std::cmp::PartialOrd<&'a $slice_i>,
+            for<'a> &'a $slice_i: std::cmp::PartialOrd<$owned>,
+            for<'a> $owned: std::cmp::PartialOrd<std::borrow::Cow<'a, $slice_i>>,
+            for<'a> std::borrow::Cow<'a, $slice_i>: std::cmp::PartialOrd<$owned>,
+            $owned: std::cmp::PartialOrd<$owned_i>,
+            $owned_i: std::cmp::PartialOrd<$owned>,
         {}
     };
     (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = TryFromInner) => {
