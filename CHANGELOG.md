@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+* Some new derive targets are added.
+
+### Added
+* Some new derive targets are added.
+    + `As{Ref,Mut}Slice{,Inner}`
+    + `{Try,}FromInner`
+    + `IntoInner`
+
 ## [0.1.0]
 
 First release.
