@@ -7,7 +7,7 @@ use std::{error, fmt};
 pub struct Error(char);
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Non-ascii-lowercase character: {:?}", self.0)
     }
 }
