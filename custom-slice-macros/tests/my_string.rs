@@ -1,5 +1,8 @@
 //! Custom string test.
 
+#[macro_use]
+mod utils;
+
 // No validations.
 custom_slice_macros::define_slice_types_pair! {
     #[derive(Default)]
@@ -19,71 +22,55 @@ custom_slice_macros::define_slice_types_pair! {
     pub struct MyStr(str);
 }
 
-#[test]
-fn default() {
-    let _ = MyString::default();
-    let _ = <&MyStr>::default();
-}
+mod owned {
+    use super::*;
 
-#[test]
-fn new() {
-    let _: MyString = MyString::new("Hello".to_owned());
-    let _: &MyStr = MyStr::new("Hello");
-    {
-        let mut hello = "Hello".to_owned();
-        let hello_mut: &mut str = &mut hello;
-        let _: &mut MyStr = MyStr::new_mut(hello_mut);
+    mod methods {
+        use super::*;
+
+        #[test]
+        fn new() {
+            let _: MyString = MyString::new("Hello".to_owned());
+        }
+    }
+
+    mod traits {
+        use super::*;
+
+        ensure_owned_traits! {
+            owned { MyString: String },
+            slice { MyStr: str },
+            targets { Borrow, Default, Deref, DerefMut }
+        }
     }
 }
 
-#[test]
-fn borrow_and_to_owned() {
-    use std::borrow::{Borrow, ToOwned};
+mod slice {
+    use super::*;
 
-    let string = MyString::default();
-    let s: &MyStr = string.borrow();
-    let _: MyString = s.to_owned();
-}
+    mod methods {
+        use super::*;
 
-#[test]
-fn deref() {
-    use std::ops::Deref;
+        #[test]
+        fn new() {
+            let _: &MyStr = MyStr::new("Hello");
+        }
 
-    let string = MyString::default();
-    let _: &MyStr = <MyString as Deref>::deref(&string);
-}
+        #[test]
+        fn new_mut() {
+            let mut hello = "Hello".to_owned();
+            let hello_mut: &mut str = &mut hello;
+            let _: &mut MyStr = MyStr::new_mut(hello_mut);
+        }
+    }
 
-#[test]
-fn deref_mut() {
-    use std::ops::DerefMut;
+    mod traits {
+        use super::*;
 
-    let mut string = MyString::default();
-    let _: &mut MyStr = <MyString as DerefMut>::deref_mut(&mut string);
-}
-
-#[test]
-fn default_box() {
-    let _: Box<MyStr> = Default::default();
-}
-
-#[test]
-fn into_arc() {
-    use std::sync::Arc;
-
-    let s: &MyStr = Default::default();
-    let _: Arc<MyStr> = Arc::<MyStr>::from(s);
-}
-
-#[test]
-fn into_box() {
-    let s: &MyStr = Default::default();
-    let _: Box<MyStr> = Box::<MyStr>::from(s);
-}
-
-#[test]
-fn into_rc() {
-    use std::rc::Rc;
-
-    let s: &MyStr = Default::default();
-    let _: Rc<MyStr> = Rc::<MyStr>::from(s);
+        ensure_slice_traits! {
+            owned { MyString: String },
+            slice { MyStr: str },
+            targets { ToOwned, DefaultRef, DefaultRefMut, DefaultBox, IntoArc, IntoBox, IntoRc }
+        }
+    }
 }

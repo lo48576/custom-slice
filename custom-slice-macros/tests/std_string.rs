@@ -2,6 +2,9 @@
 
 use std::{error, fmt};
 
+#[macro_use]
+mod utils;
+
 /// Error for UTF-8 string slice creation.
 ///
 /// See <https://doc.rust-lang.org/stable/std/str/struct.Utf8Error.html>.
@@ -108,70 +111,83 @@ custom_slice_macros::define_slice_types_pair! {
     }
 }
 
-#[test]
-fn default() {
-    let _ = StdString::default();
-    let _ = <&StdStr>::default();
-}
+mod owned {
+    use super::*;
 
-#[test]
-fn new_checked() {
-    {
-        let res: Result<StdString, FromUtf8Error> = StdString::from_utf8(b"Hello".to_vec());
-        assert!(res.is_ok());
+    mod methods {
+        use super::*;
+
+        #[test]
+        fn new_checked() {
+            let res: Result<StdString, FromUtf8Error> = StdString::from_utf8(b"Hello".to_vec());
+            assert!(res.is_ok());
+        }
+
+        #[test]
+        fn new_checked_mut() {
+            let mut hello = b"Hello".to_vec();
+            let hello_mut: &mut [u8] = &mut hello;
+            let res: Result<&mut StdStr, Utf8Error> = StdStr::from_utf8_mut(hello_mut);
+            assert!(res.is_ok());
+        }
+
+        #[test]
+        fn new_unchecked() {
+            let _: StdString = unsafe { StdString::from_utf8_unchecked(b"Hello".to_vec()) };
+        }
     }
-    {
-        let res: Result<&StdStr, Utf8Error> = StdStr::from_utf8(b"Hello");
-        assert!(res.is_ok());
-    }
-    {
-        let mut hello = b"Hello".to_vec();
-        let hello_mut: &mut [u8] = &mut hello;
-        let res: Result<&mut StdStr, Utf8Error> = StdStr::from_utf8_mut(hello_mut);
-        assert!(res.is_ok());
-    }
-}
 
-#[test]
-fn new_unchecked() {
-    let _: StdString = unsafe { StdString::from_utf8_unchecked(b"Hello".to_vec()) };
-    let _: &StdStr = unsafe { StdStr::from_utf8_unchecked(b"Hello") };
-    {
-        let mut hello = b"Hello".to_vec();
-        let hello_mut: &mut [u8] = &mut hello;
-        let _: &mut StdStr = unsafe { StdStr::from_utf8_unchecked_mut(hello_mut) };
+    mod traits {
+        use super::*;
+
+        ensure_owned_traits! {
+            owned { StdString: Vec<u8> },
+            slice { StdStr: [u8] },
+            targets { Borrow, BorrowMut, Deref, DerefMut }
+        }
     }
 }
 
-#[test]
-fn borrow_and_to_owned() {
-    use std::borrow::{Borrow, ToOwned};
+mod slice {
+    use super::*;
 
-    let string = StdString::default();
-    let s: &StdStr = string.borrow();
-    let _: StdString = s.to_owned();
-}
+    mod methods {
+        use super::*;
 
-#[test]
-fn borrow_mut() {
-    use std::borrow::BorrowMut;
+        #[test]
+        fn new_checked() {
+            let res: Result<&StdStr, Utf8Error> = StdStr::from_utf8(b"Hello");
+            assert!(res.is_ok());
+        }
 
-    let mut string = StdString::default();
-    let _: &mut StdStr = <StdString as BorrowMut<StdStr>>::borrow_mut(&mut string);
-}
+        #[test]
+        fn new_checked_mut() {
+            let mut hello = b"Hello".to_vec();
+            let hello_mut: &mut [u8] = &mut hello;
+            let res: Result<&mut StdStr, Utf8Error> = StdStr::from_utf8_mut(hello_mut);
+            assert!(res.is_ok());
+        }
 
-#[test]
-fn deref() {
-    use std::ops::Deref;
+        #[test]
+        fn new_unchecked() {
+            let _: &StdStr = unsafe { StdStr::from_utf8_unchecked(b"Hello") };
+        }
 
-    let string = StdString::default();
-    let _: &StdStr = <StdString as Deref>::deref(&string);
-}
+        #[test]
+        fn new_unchecked_mut() {
+            let mut hello = b"Hello".to_vec();
+            let hello_mut: &mut [u8] = &mut hello;
+            let _: &mut StdStr = unsafe { StdStr::from_utf8_unchecked_mut(hello_mut) };
+        }
+    }
 
-#[test]
-fn deref_mut() {
-    use std::ops::DerefMut;
+    mod traits {
+        use super::*;
 
-    let mut string = StdString::default();
-    let _: &mut StdStr = <StdString as DerefMut>::deref_mut(&mut string);
+        ensure_slice_traits! {
+            owned { StdString: String },
+            slice { StdStr: str },
+            targets { ToOwned, DefaultRef, DefaultRefMut }
+        }
+    }
 }
