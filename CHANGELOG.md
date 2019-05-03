@@ -9,6 +9,7 @@
     + `As{Ref,Mut}Slice{,Inner}`
     + `{Try,}FromInner`
     + `IntoInner`
+    + `Partial{Eq,Ord}{,Bulk,InnerBulk}`
 
 ## [0.1.0]
 
