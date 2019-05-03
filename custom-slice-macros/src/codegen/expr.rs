@@ -4,7 +4,10 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::{
-    codegen::props::{DynMutability, Mutability, Safety},
+    codegen::{
+        props::{Mutability, Safety},
+        traits::OwnedToSliceTrait,
+    },
     defs::Definitions,
 };
 
@@ -40,23 +43,16 @@ impl<T: ToTokens> OwnedInner<T> {
     pub(crate) fn to_slice_inner_ref<M: Mutability>(
         &self,
         defs: &Definitions,
+        conv_trait: OwnedToSliceTrait,
         mutability: M,
-    ) -> SliceInner<TokenStream, M> {
-        let ty_slice_inner = defs.ty_slice_inner();
-        let ty_owned_inner = defs.ty_owned_inner();
-        let trait_borrow = match mutability.into() {
-            DynMutability::Constant => quote!(std::borrow::Borrow),
-            DynMutability::Mutable => quote!(std::borrow::BorrowMut),
-        };
-        let fn_borrow = match mutability.into() {
-            DynMutability::Constant => quote!(borrow),
-            DynMutability::Mutable => quote!(borrow_mut),
-        };
-        let self_ref = mutability.make_ref(self);
+    ) -> SliceInner<impl ToTokens, M> {
         SliceInner::new(
-            quote! {
-                <#ty_owned_inner as #trait_borrow<#ty_slice_inner>>::#fn_borrow(#self_ref)
-            },
+            conv_trait.expr_call(
+                defs.ty_owned_inner(),
+                defs.ty_slice_inner(),
+                mutability.make_ref(self),
+                mutability,
+            ),
             mutability,
         )
     }
