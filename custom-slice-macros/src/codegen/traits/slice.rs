@@ -170,20 +170,22 @@ pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> Tok
     let fn_deref = OwnedToSliceTrait::Deref.method_name(mutability);
 
     let ty_slice = defs.ty_slice();
-    let ty_slice_inner = defs.ty_slice_inner();
-    let ty_slice_inner_ref = mutability.make_ref(&ty_slice_inner);
     let self_ref = mutability.make_ref(quote!(self));
     let target = match mutability.into() {
-        DynMutability::Constant => quote!(type Target = #ty_slice_inner;),
+        DynMutability::Constant => {
+            let ty_slice_inner = defs.ty_slice_inner();
+            quote!(type Target = #ty_slice_inner;)
+        }
         DynMutability::Mutable => quote!(),
     };
+    let ty_ret = mutability.make_ref(quote!(Self::Target));
 
     let body: SliceInner<_, _> = Slice::new(quote!(self), mutability).to_slice_inner_ref(defs);
     quote! {
         impl #trait_deref for #ty_slice {
             #target
 
-            fn #fn_deref(#self_ref) -> #ty_slice_inner_ref {
+            fn #fn_deref(#self_ref) -> #ty_ret {
                 #body
             }
         }
