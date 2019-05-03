@@ -48,6 +48,42 @@ mod owned {
     }
 
     gen_test! {
+        name: as_ref_slice,
+        #[custom_slice(derive(AsRefSlice))]
+        owned: Vec<u8>,
+        owned_tests: { AsRefSlice },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: as_ref_slice_inner,
+        #[custom_slice(derive(AsRefSliceInner))]
+        owned: Vec<u8>,
+        owned_tests: { AsRefSliceInner },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: as_mut_slice,
+        #[custom_slice(derive(AsMutSlice))]
+        owned: Vec<u8>,
+        owned_tests: { AsMutSlice },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: as_mut_slice_inner,
+        #[custom_slice(derive(AsMutSliceInner))]
+        owned: Vec<u8>,
+        owned_tests: { AsMutSliceInner },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
         name: borrow_mut,
         #[custom_slice(derive(BorrowMut))]
         owned: Vec<u8>,

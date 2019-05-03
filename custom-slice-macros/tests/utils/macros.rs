@@ -22,6 +22,30 @@ macro_rules! ensure_owned_traits {
             $owned: std::borrow::Borrow<$slice>,
         {}
     };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = AsRefSlice) => {
+        #[test]
+        fn as_ref_slice() where
+            $owned: std::convert::AsRef<$slice>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = AsRefSliceInner) => {
+        #[test]
+        fn as_ref_slice_inner() where
+            $owned: std::convert::AsRef<$slice_i>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = AsMutSlice) => {
+        #[test]
+        fn as_mut_slice() where
+            $owned: std::convert::AsMut<$slice>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = AsMutSliceInner) => {
+        #[test]
+        fn as_mut_slice_inner() where
+            $owned: std::convert::AsMut<$slice_i>,
+        {}
+    };
     (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = BorrowMut) => {
         #[test]
         fn borrow_mut() where

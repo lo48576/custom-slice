@@ -324,6 +324,10 @@ impl Definitions {
         self.owned.attrs.derives().map(move |derive| {
             let derive = derive.to_string();
             match derive.as_str() {
+                "AsRefSlice" => traits::owned::impl_as_ref_slice(self, Constant),
+                "AsRefSliceInner" => traits::owned::impl_as_ref_slice_inner(self, Constant),
+                "AsMutSlice" => traits::owned::impl_as_ref_slice(self, Mutable),
+                "AsMutSliceInner" => traits::owned::impl_as_ref_slice_inner(self, Mutable),
                 "BorrowMut" => traits::owned::impl_borrow(self, Mutable),
                 "Deref" => traits::owned::impl_deref(self, Constant),
                 "DerefMut" => traits::owned::impl_deref(self, Mutable),
