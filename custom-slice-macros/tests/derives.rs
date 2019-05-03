@@ -36,6 +36,42 @@ macro_rules! gen_test {
             }
         }
     };
+    (
+        name: $name:ident,
+        $(#[$meta_owned:meta])* owned: $owned_inner:ty,
+        owned_tests: { $($target_owned:ident),* },
+        $(#[$meta_slice:meta])* slice: $slice_inner:ty,
+        slice_tests: { $($target_slice:ident),* },
+        validator: $ty_error:ty $body:block,
+    ) => {
+        mod $name {
+            custom_slice_macros::define_slice_types_pair! {
+                #[custom_slice(owned)]
+                $(#[$meta_owned])*
+                struct Owned($owned_inner);
+
+                #[repr(transparent)]
+                #[custom_slice(slice)]
+                $(#[$meta_slice])*
+                struct Slice($slice_inner);
+
+                #[custom_slice(validator)]
+                fn validate(_: &$slice_inner) -> Result<(), $ty_error> $body
+            }
+
+            ensure_owned_traits! {
+                owned { Owned: Vec<u8> },
+                slice { Slice: [u8] },
+                targets { $($target_owned),* }
+            }
+
+            ensure_slice_traits! {
+                owned { Owned: Vec<u8> },
+                slice { Slice: [u8] },
+                targets { $($target_slice),* }
+            }
+        }
+    };
 }
 
 mod owned {
@@ -43,6 +79,42 @@ mod owned {
         name: borrow,
         owned: Vec<u8>,
         owned_tests: { Borrow },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: as_ref_slice,
+        #[custom_slice(derive(AsRefSlice))]
+        owned: Vec<u8>,
+        owned_tests: { AsRefSlice },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: as_ref_slice_inner,
+        #[custom_slice(derive(AsRefSliceInner))]
+        owned: Vec<u8>,
+        owned_tests: { AsRefSliceInner },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: as_mut_slice,
+        #[custom_slice(derive(AsMutSlice))]
+        owned: Vec<u8>,
+        owned_tests: { AsMutSlice },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: as_mut_slice_inner,
+        #[custom_slice(derive(AsMutSliceInner))]
+        owned: Vec<u8>,
+        owned_tests: { AsMutSliceInner },
         slice: [u8],
         slice_tests: {},
     }
@@ -73,6 +145,36 @@ mod owned {
         slice: [u8],
         slice_tests: {},
     }
+
+    gen_test! {
+        name: from_inner,
+        #[custom_slice(derive(FromInner))]
+        owned: Vec<u8>,
+        owned_tests: { FromInner },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: into_inner,
+        #[custom_slice(derive(IntoInner))]
+        owned: Vec<u8>,
+        owned_tests: { IntoInner },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: try_from_inner,
+        #[custom_slice(derive(TryFromInner))]
+        #[custom_slice(error(r#type = "()"))]
+        owned: Vec<u8>,
+        owned_tests: { TryFromInner },
+        #[custom_slice(error(r#type = "()"))]
+        slice: [u8],
+        slice_tests: {},
+        validator: () { Ok(()) },
+    }
 }
 
 mod slice {
@@ -82,6 +184,42 @@ mod slice {
         owned_tests: {},
         slice: [u8],
         slice_tests: { ToOwned },
+    }
+
+    gen_test! {
+        name: as_ref_slice,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(AsRefSlice))]
+        slice: [u8],
+        slice_tests: { AsRefSlice },
+    }
+
+    gen_test! {
+        name: as_ref_slice_inner,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(AsRefSliceInner))]
+        slice: [u8],
+        slice_tests: { AsRefSliceInner },
+    }
+
+    gen_test! {
+        name: as_mut_slice,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(AsMutSlice))]
+        slice: [u8],
+        slice_tests: { AsMutSlice },
+    }
+
+    gen_test! {
+        name: as_mut_slice_inner,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(AsMutSliceInner))]
+        slice: [u8],
+        slice_tests: { AsMutSliceInner },
     }
 
     gen_test! {
@@ -112,6 +250,24 @@ mod slice {
     }
 
     gen_test! {
+        name: from_inner,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(FromInner))]
+        slice: [u8],
+        slice_tests: { FromInner },
+    }
+
+    gen_test! {
+        name: from_inner_mut,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(FromInnerMut))]
+        slice: [u8],
+        slice_tests: { FromInnerMut },
+    }
+
+    gen_test! {
         name: into_arc,
         owned: Vec<u8>,
         owned_tests: {},
@@ -136,5 +292,29 @@ mod slice {
         #[custom_slice(derive(IntoRc))]
         slice: [u8],
         slice_tests: { IntoRc },
+    }
+
+    gen_test! {
+        name: try_from_inner,
+        #[custom_slice(error(r#type = "()"))]
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(TryFromInner))]
+        #[custom_slice(error(r#type = "()"))]
+        slice: [u8],
+        slice_tests: { TryFromInner },
+        validator: () { Ok(()) },
+    }
+
+    gen_test! {
+        name: try_from_inner_mut,
+        #[custom_slice(error(r#type = "()"))]
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(TryFromInnerMut))]
+        #[custom_slice(error(r#type = "()"))]
+        slice: [u8],
+        slice_tests: { TryFromInnerMut },
+        validator: () { Ok(()) },
     }
 }

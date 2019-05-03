@@ -22,10 +22,10 @@ mod builder;
 
 /// Definitions.
 pub(crate) struct Definitions {
-    /// Slice type definition.
-    slice: CustomType,
     /// Owned type definition.
     owned: CustomType,
+    /// Slice type definition.
+    slice: CustomType,
     /// Validator function definition.
     validator: Option<Validator>,
 }
@@ -36,28 +36,28 @@ impl Definitions {
         let mut tokens = TokenStream::new();
 
         // Type definitions.
-        self.slice.create_item().to_tokens(&mut tokens);
         self.owned.create_item().to_tokens(&mut tokens);
+        self.slice.create_item().to_tokens(&mut tokens);
         // Validator function definition.
         if let Some(validator) = &self.validator {
             validator.create_item().to_tokens(&mut tokens);
         }
 
-        // Methods for slice type.
-        self.impl_methods_for_slice().to_tokens(&mut tokens);
         // Methods for owned type.
         self.impl_methods_for_owned().to_tokens(&mut tokens);
+        // Methods for slice type.
+        self.impl_methods_for_slice().to_tokens(&mut tokens);
 
-        // `ToOwned` for slice type.
-        traits::slice::impl_to_owned(self).to_tokens(&mut tokens);
         // `Borrow` for owned type.
         traits::owned::impl_borrow(self, Constant).to_tokens(&mut tokens);
+        // `ToOwned` for slice type.
+        traits::slice::impl_to_owned(self).to_tokens(&mut tokens);
 
-        // std trait impls for slice types.
-        self.impl_derives_for_slice()
-            .for_each(|v| v.to_tokens(&mut tokens));
         // std trait impls for owned types.
         self.impl_derives_for_owned()
+            .for_each(|v| v.to_tokens(&mut tokens));
+        // std trait impls for slice types.
+        self.impl_derives_for_slice()
             .for_each(|v| v.to_tokens(&mut tokens));
 
         tokens
@@ -84,6 +84,32 @@ impl Definitions {
         self.slice.inner_type().into_token_stream()
     }
 
+    pub(crate) fn has_validator(&self) -> bool {
+        self.validator.is_some()
+    }
+
+    pub(crate) fn fn_validator(&self) -> Option<impl ToTokens> {
+        self.validator
+            .as_ref()
+            .map(|v| v.name().into_token_stream())
+    }
+
+    pub(crate) fn owned_error_ty_and_val(
+        &self,
+        error_var: impl ToTokens,
+        arg_name: OwnedInner<impl ToTokens>,
+    ) -> (syn::Type, TokenStream) {
+        get_error_ty_and_val(&self.owned.attrs, error_var, arg_name)
+    }
+
+    pub(crate) fn slice_error_ty_and_val(
+        &self,
+        error_var: impl ToTokens,
+        arg_name: SliceInner<impl ToTokens, impl Mutability>,
+    ) -> (syn::Type, TokenStream) {
+        get_error_ty_and_val(&self.slice.attrs, error_var, arg_name)
+    }
+
     pub(crate) fn expr_owned_to_inner(
         &self,
         owned: &Owned<impl ToTokens>,
@@ -105,6 +131,83 @@ impl Definitions {
         let ty_owned = self.ty_owned();
         let field = self.owned.field_name();
         Owned::new(quote!(#ty_owned { #field: #inner }))
+    }
+
+    /// Implements methods for the owned type.
+    fn impl_methods_for_owned(&self) -> Option<TokenStream> {
+        let mut body = TokenStream::new();
+        self.impl_owned_constructor_unchecked("new_unchecked")
+            .to_tokens(&mut body);
+        self.impl_owned_constructor_checked("new_checked")
+            .to_tokens(&mut body);
+        self.impl_owned_accessor("get_ref", Constant)
+            .to_tokens(&mut body);
+        self.impl_owned_accessor("get_mut", Mutable)
+            .to_tokens(&mut body);
+        if let Some(fn_prefix) = self.owned.attrs.get_fn_prefix("into_inner") {
+            let owned_inner = Owned::new(quote!(self)).to_owned_inner(self);
+            let new_fn = fn_prefix
+                .build_item_with_raw_args(quote!(self), self.owned.inner_type(), owned_inner)
+                .unwrap_or_else(|e| panic!("Failed to parse `into_inner` attribute: {}", e));
+            new_fn.to_tokens(&mut body);
+        }
+
+        if body.is_empty() {
+            return None;
+        }
+        let ty_owned = self.owned.outer_type();
+        Some(quote!(impl #ty_owned { #body }))
+    }
+
+    fn impl_owned_constructor_unchecked(&self, attr_name: &str) -> Option<ItemFn> {
+        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
+
+        let ty_owned_inner = self.owned.inner_type();
+        let arg_name = OwnedInner::new(quote!(_v));
+        let new_fn = fn_prefix
+            .build_item_with_named_arg(
+                &arg_name,
+                ty_owned_inner,
+                quote!(Self),
+                arg_name.to_owned_unchecked(self),
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        Some(new_fn)
+    }
+
+    fn impl_owned_constructor_checked(&self, attr_name: &str) -> Option<ItemFn> {
+        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
+        let arg_name = OwnedInner::new(quote!(_v));
+        let error_var = &quote!(_e);
+
+        let (expr, ty_error) =
+            traits::owned::inner_to_outer_checked(self, arg_name.as_ref(), &error_var);
+        let block = quote!({ #expr });
+        let new_fn = fn_prefix
+            .build_item_with_named_arg(
+                arg_name,
+                self.owned.inner_type(),
+                quote!(std::result::Result<Self, #ty_error>),
+                block,
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        Some(new_fn)
+    }
+
+    fn impl_owned_accessor(&self, attr_name: &str, mutability: impl Mutability) -> Option<ItemFn> {
+        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
+
+        let self_ref = mutability.make_ref(quote!(self));
+        let owned = Owned::new(quote!(self));
+        let ty_owned_inner_ref = mutability.make_ref(self.owned.inner_type());
+        let new_fn = fn_prefix
+            .build_item_with_raw_args(
+                &self_ref,
+                ty_owned_inner_ref,
+                mutability.make_ref(owned.to_owned_inner(self)),
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        Some(new_fn)
     }
 
     /// Implements methods for the slice type.
@@ -157,34 +260,22 @@ impl Definitions {
         let arg_name = SliceInner::new(quote!(_v), mutability);
         let error_var = &quote!(_e);
 
-        let (ty_error, mapped_error) =
-            get_error_ty_and_val(&self.slice.attrs, error_var, &arg_name);
+        // Context can be `unsafe` if the constructor is declared as
+        // `unsafe fn`. However, always assume as safe context here, since
+        // `unsafe` block in `unsafe fn` is redundant but does no harm.
+        let (expr, ty_error) =
+            traits::slice::inner_to_outer_checked(self, arg_name.as_ref(), error_var, Safety::Safe);
 
         let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
         let mut new_fn = fn_prefix
             .build_item_with_named_arg(
-                &arg_name,
+                arg_name.as_ref(),
                 mutability.make_ref(self.slice.inner_type()),
                 quote!(std::result::Result<#ty_slice_ref, #ty_error>),
                 quote!(),
             )
             .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let block = {
-            let expr_outer = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
-            let fn_validate = match &self.validator {
-                Some(v) => v.name(),
-                None => panic!(
-                    "Validator should be necessary for checked constructor: attr_name = {:?}",
-                    attr_name
-                ),
-            };
-            parse_quote!({
-                match #fn_validate(#arg_name) {
-                    Ok(_) => Ok(#expr_outer),
-                    Err(#error_var) => Err(#mapped_error),
-                }
-            })
-        };
+        let block = parse_quote!({ #expr });
         *new_fn.block = block;
         Some(new_fn)
     }
@@ -205,98 +296,25 @@ impl Definitions {
         Some(new_fn)
     }
 
-    /// Implements methods for the owned type.
-    fn impl_methods_for_owned(&self) -> Option<TokenStream> {
-        let mut body = TokenStream::new();
-        self.impl_owned_constructor_unchecked("new_unchecked")
-            .to_tokens(&mut body);
-        self.impl_owned_constructor_checked("new_checked")
-            .to_tokens(&mut body);
-        self.impl_owned_accessor("get_ref", Constant)
-            .to_tokens(&mut body);
-        self.impl_owned_accessor("get_mut", Mutable)
-            .to_tokens(&mut body);
-        if let Some(fn_prefix) = self.owned.attrs.get_fn_prefix("into_inner") {
-            let owned_inner = Owned::new(quote!(self)).to_owned_inner(self);
-            let new_fn = fn_prefix
-                .build_item_with_raw_args(quote!(self), self.owned.inner_type(), owned_inner)
-                .unwrap_or_else(|e| panic!("Failed to parse `into_inner` attribute: {}", e));
-            new_fn.to_tokens(&mut body);
-        }
-
-        if body.is_empty() {
-            return None;
-        }
-        let ty_owned = self.owned.outer_type();
-        Some(quote!(impl #ty_owned { #body }))
-    }
-
-    fn impl_owned_constructor_unchecked(&self, attr_name: &str) -> Option<ItemFn> {
-        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
-
-        let ty_owned_inner = self.owned.inner_type();
-        let arg_name = OwnedInner::new(quote!(_v));
-        let new_fn = fn_prefix
-            .build_item_with_named_arg(
-                &arg_name,
-                ty_owned_inner,
-                quote!(Self),
-                arg_name.to_owned_unchecked(self),
-            )
-            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        Some(new_fn)
-    }
-
-    fn impl_owned_constructor_checked(&self, attr_name: &str) -> Option<ItemFn> {
-        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
-        let arg_name = OwnedInner::new(quote!(_v));
-        let error_var = &quote!(_e);
-
-        let (ty_error, mapped_error) =
-            get_error_ty_and_val(&self.owned.attrs, error_var, &arg_name);
-
-        let block = {
-            let val_expr = arg_name.to_owned_unchecked(self);
-            let expr_slice_inner_ref = OwnedInner::new(&arg_name).to_slice_inner_ref(self);
-            let fn_validate = match &self.validator {
-                Some(v) => v.name(),
-                None => panic!(
-                    "Validator should be necessary for checked constructor: attr_name = {:?}",
-                    attr_name
-                ),
-            };
-            quote! {{
-                match #fn_validate(#expr_slice_inner_ref) {
-                    Ok(_) => Ok(#val_expr),
-                    Err(#error_var) => Err(#mapped_error),
-                }
-            }}
-        };
-        let new_fn = fn_prefix
-            .build_item_with_named_arg(
-                arg_name,
-                self.owned.inner_type(),
-                quote!(std::result::Result<Self, #ty_error>),
-                block,
-            )
-            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        Some(new_fn)
-    }
-
-    fn impl_owned_accessor(&self, attr_name: &str, mutability: impl Mutability) -> Option<ItemFn> {
-        let fn_prefix = self.owned.attrs.get_fn_prefix(attr_name)?;
-
-        let self_ref = mutability.make_ref(quote!(self));
-        let owned = Owned::new(quote!(self));
-        let ty_owned_inner_ref = mutability.make_ref(self.owned.inner_type());
-        let new_fn = fn_prefix
-            .build_item_with_raw_args(
-                &self_ref,
-                ty_owned_inner_ref,
-                mutability.make_ref(owned.to_owned_inner(self)),
-            )
-            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        Some(new_fn)
+    /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
+    /// the owned type.
+    fn impl_derives_for_owned<'a>(&'a self) -> impl Iterator<Item = TokenStream> + 'a {
+        self.owned.attrs.derives().map(move |derive| {
+            let derive = derive.to_string();
+            match derive.as_str() {
+                "AsRefSlice" => traits::owned::impl_as_ref_slice(self, Constant),
+                "AsRefSliceInner" => traits::owned::impl_as_ref_slice_inner(self, Constant),
+                "AsMutSlice" => traits::owned::impl_as_ref_slice(self, Mutable),
+                "AsMutSliceInner" => traits::owned::impl_as_ref_slice_inner(self, Mutable),
+                "BorrowMut" => traits::owned::impl_borrow(self, Mutable),
+                "Deref" => traits::owned::impl_deref(self, Constant),
+                "DerefMut" => traits::owned::impl_deref(self, Mutable),
+                "FromInner" => traits::owned::impl_from_inner(self),
+                "IntoInner" => traits::owned::impl_into_inner(self),
+                "TryFromInner" => traits::owned::impl_try_from_inner(self),
+                derive => panic!("Unknown derive target for slice type: {:?}", derive),
+            }
+        })
     }
 
     /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
@@ -305,28 +323,22 @@ impl Definitions {
         self.slice.attrs.derives().map(move |derive| {
             let derive = derive.to_string();
             match derive.as_str() {
-                "DefaultRef" => traits::slice::impl_default_ref(self, Constant),
-                "DefaultRefMut" => traits::slice::impl_default_ref(self, Mutable),
+                "AsRefSlice" => traits::slice::impl_as_ref_slice(self, Constant),
+                "AsRefSliceInner" => traits::slice::impl_as_ref_slice_inner(self, Constant),
+                "AsMutSlice" => traits::slice::impl_as_ref_slice(self, Mutable),
+                "AsMutSliceInner" => traits::slice::impl_as_ref_slice_inner(self, Mutable),
                 "DefaultArc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Arc),
                 "DefaultBox" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Box),
                 "DefaultRc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Rc),
+                "DefaultRef" => traits::slice::impl_default_ref(self, Constant),
+                "DefaultRefMut" => traits::slice::impl_default_ref(self, Mutable),
+                "FromInner" => traits::slice::impl_from_inner(self, Constant),
+                "FromInnerMut" => traits::slice::impl_from_inner(self, Mutable),
                 "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
                 "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
                 "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),
-                derive => panic!("Unknown derive target for slice type: {:?}", derive),
-            }
-        })
-    }
-
-    /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
-    /// the owned type.
-    fn impl_derives_for_owned<'a>(&'a self) -> impl Iterator<Item = TokenStream> + 'a {
-        self.owned.attrs.derives().map(move |derive| {
-            let derive = derive.to_string();
-            match derive.as_str() {
-                "BorrowMut" => traits::owned::impl_borrow(self, Mutable),
-                "Deref" => traits::owned::impl_deref(self, Constant),
-                "DerefMut" => traits::owned::impl_deref(self, Mutable),
+                "TryFromInner" => traits::slice::impl_try_from_inner(self, Constant),
+                "TryFromInnerMut" => traits::slice::impl_try_from_inner(self, Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })

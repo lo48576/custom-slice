@@ -22,6 +22,30 @@ macro_rules! ensure_owned_traits {
             $owned: std::borrow::Borrow<$slice>,
         {}
     };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = AsRefSlice) => {
+        #[test]
+        fn as_ref_slice() where
+            $owned: std::convert::AsRef<$slice>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = AsRefSliceInner) => {
+        #[test]
+        fn as_ref_slice_inner() where
+            $owned: std::convert::AsRef<$slice_i>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = AsMutSlice) => {
+        #[test]
+        fn as_mut_slice() where
+            $owned: std::convert::AsMut<$slice>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = AsMutSliceInner) => {
+        #[test]
+        fn as_mut_slice_inner() where
+            $owned: std::convert::AsMut<$slice_i>,
+        {}
+    };
     (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = BorrowMut) => {
         #[test]
         fn borrow_mut() where
@@ -44,6 +68,24 @@ macro_rules! ensure_owned_traits {
         #[test]
         fn deref_mut() where
             $owned: std::ops::DerefMut<Target = $slice>,
+        {}
+    };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = FromInner) => {
+        #[test]
+        fn into_inner() where
+            $owned: std::convert::From<$owned_i>,
+        {}
+    };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = IntoInner) => {
+        #[test]
+        fn into_inner() where
+            $owned_i: std::convert::From<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = TryFromInner) => {
+        #[test]
+        fn try_from_inner() where
+            $owned: std::convert::TryFrom<$owned_i>,
         {}
     };
     (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = $target:ident) => {
@@ -73,6 +115,30 @@ macro_rules! ensure_slice_traits {
             $slice: std::borrow::ToOwned<Owned = $owned>,
         {}
     };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = AsRefSlice) => {
+        #[test]
+        fn as_ref_slice() where
+            $slice: std::convert::AsRef<$slice>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = AsRefSliceInner) => {
+        #[test]
+        fn as_ref_slice_inner() where
+            $slice: std::convert::AsRef<$slice_i>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = AsMutSlice) => {
+        #[test]
+        fn as_mut_slice() where
+            $slice: std::convert::AsMut<$slice>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = AsMutSliceInner) => {
+        #[test]
+        fn as_mut_slice_inner() where
+            $slice: std::convert::AsMut<$slice_i>,
+        {}
+    };
     (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = DefaultBox) => {
         #[test]
         fn default_box() where
@@ -91,6 +157,18 @@ macro_rules! ensure_slice_traits {
             for<'a> &'a mut $slice: std::default::Default,
         {}
     };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = FromInner) => {
+        #[test]
+        fn into_inner() where
+            for<'a> &'a $slice: std::convert::From<&'a $slice_i>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = FromInnerMut) => {
+        #[test]
+        fn into_inner() where
+            for<'a> &'a mut $slice: std::convert::From<&'a mut $slice_i>,
+        {}
+    };
     (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = IntoArc) => {
         #[test]
         fn into_arc() where
@@ -107,6 +185,18 @@ macro_rules! ensure_slice_traits {
         #[test]
         fn into_rc() where
             for<'a> std::rc::Rc<$slice>: std::convert::From<&'a $slice>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = TryFromInner) => {
+        #[test]
+        fn try_from_inner() where
+            for<'a> &'a $slice: std::convert::TryFrom<&'a $slice_i>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = TryFromInnerMut) => {
+        #[test]
+        fn try_from_inner_mut() where
+            for<'a> &'a mut $slice: std::convert::TryFrom<&'a mut $slice_i>,
         {}
     };
     (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = $target:ident) => {
