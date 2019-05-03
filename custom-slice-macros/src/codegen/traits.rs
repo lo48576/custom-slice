@@ -151,4 +151,33 @@ impl CmpTrait {
             }
         }
     }
+
+    pub(crate) fn impl_with_inner(
+        self,
+        defs: &Definitions,
+        lhs: RefType,
+        rhs: RefType,
+    ) -> impl ToTokens {
+        let trait_path = self.trait_path();
+        let method = self.method_name();
+        let ty_ret = self.ty_ret();
+        let arg_rhs = &quote!(__other);
+
+        let ty_slice_inner = defs.ty_slice_inner();
+        let expr_lhs = lhs.ref_to_slice_inner_ref(defs, quote!(self));
+        let expr_rhs = rhs.ref_to_slice_inner_ref(defs, arg_rhs);
+        let ty_lhs = lhs.ty(defs);
+        let ty_rhs = rhs.ty(defs);
+
+        quote! {
+            impl #trait_path<#ty_rhs> for #ty_lhs {
+                fn #method(&self, #arg_rhs: &#ty_rhs) -> #ty_ret {
+                    #trait_path::<#ty_slice_inner>::#method(
+                        #expr_lhs,
+                        #expr_rhs,
+                    )
+                }
+            }
+        }
+    }
 }

@@ -72,6 +72,56 @@ pub(crate) fn impl_cmp_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream
     tokens
 }
 
+/// Implements `PartialEq` and `PartialOrd` for many types.
+pub(crate) fn impl_cmp_inner_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    let mut tokens = TokenStream::new();
+    target
+        .impl_with_inner(defs, RefType::Slice, RefType::SliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::SliceInner, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Slice, RefType::RefSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::RefSliceInner, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Slice, RefType::OwnedInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::OwnedInner, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Slice, RefType::CowSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::CowSliceInner, RefType::Slice)
+        .to_tokens(&mut tokens);
+
+    target
+        .impl_with_inner(defs, RefType::RefSlice, RefType::SliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::SliceInner, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::RefSlice, RefType::OwnedInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::OwnedInner, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::RefSlice, RefType::CowSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::CowSliceInner, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+
+    tokens
+}
+
 /// Implements `Default` for `&Slice` or `&mut Slice`.
 pub(crate) fn impl_default_ref(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
     let ty_slice_ref = mutability.make_ref(defs.ty_slice());

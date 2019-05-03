@@ -342,7 +342,13 @@ impl Definitions {
                 "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
                 "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),
                 "PartialEqBulk" => traits::slice::impl_cmp_bulk(self, CmpTrait::PartialEq),
+                "PartialEqInnerBulk" => {
+                    traits::slice::impl_cmp_inner_bulk(self, CmpTrait::PartialEq)
+                }
                 "PartialOrdBulk" => traits::slice::impl_cmp_bulk(self, CmpTrait::PartialOrd),
+                "PartialOrdInnerBulk" => {
+                    traits::slice::impl_cmp_inner_bulk(self, CmpTrait::PartialOrd)
+                }
                 "TryFromInner" => traits::slice::impl_try_from_inner(self, Constant),
                 "TryFromInnerMut" => traits::slice::impl_try_from_inner(self, Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
