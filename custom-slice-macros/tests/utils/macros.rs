@@ -70,6 +70,12 @@ macro_rules! ensure_owned_traits {
             $owned: std::ops::DerefMut<Target = $slice>,
         {}
     };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = FromInner) => {
+        #[test]
+        fn into_inner() where
+            $owned: std::convert::From<$owned_i>,
+        {}
+    };
     (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = IntoInner) => {
         #[test]
         fn into_inner() where
@@ -149,6 +155,18 @@ macro_rules! ensure_slice_traits {
         #[test]
         fn default_ref_mut() where
             for<'a> &'a mut $slice: std::default::Default,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = FromInner) => {
+        #[test]
+        fn into_inner() where
+            for<'a> &'a $slice: std::convert::From<&'a $slice_i>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = FromInnerMut) => {
+        #[test]
+        fn into_inner() where
+            for<'a> &'a mut $slice: std::convert::From<&'a mut $slice_i>,
         {}
     };
     (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = IntoArc) => {

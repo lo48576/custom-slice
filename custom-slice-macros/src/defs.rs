@@ -84,6 +84,10 @@ impl Definitions {
         self.slice.inner_type().into_token_stream()
     }
 
+    pub(crate) fn has_validator(&self) -> bool {
+        self.validator.is_some()
+    }
+
     pub(crate) fn fn_validator(&self) -> Option<impl ToTokens> {
         self.validator
             .as_ref()
@@ -305,6 +309,7 @@ impl Definitions {
                 "BorrowMut" => traits::owned::impl_borrow(self, Mutable),
                 "Deref" => traits::owned::impl_deref(self, Constant),
                 "DerefMut" => traits::owned::impl_deref(self, Mutable),
+                "FromInner" => traits::owned::impl_from_inner(self),
                 "IntoInner" => traits::owned::impl_into_inner(self),
                 "TryFromInner" => traits::owned::impl_try_from_inner(self),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
@@ -327,6 +332,8 @@ impl Definitions {
                 "DefaultRc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Rc),
                 "DefaultRef" => traits::slice::impl_default_ref(self, Constant),
                 "DefaultRefMut" => traits::slice::impl_default_ref(self, Mutable),
+                "FromInner" => traits::slice::impl_from_inner(self, Constant),
+                "FromInnerMut" => traits::slice::impl_from_inner(self, Mutable),
                 "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
                 "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
                 "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),

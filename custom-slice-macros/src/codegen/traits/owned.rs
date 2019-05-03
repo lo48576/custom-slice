@@ -116,6 +116,25 @@ pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> Tok
     }
 }
 
+/// Implements `From<OwnedInner>`.
+pub(crate) fn impl_from_inner(defs: &Definitions) -> TokenStream {
+    if defs.has_validator() {
+        panic!("`From<OwnedInner>` cannot be implemented because a validator is specified");
+    }
+
+    let arg_name = OwnedInner::new(quote!(_v));
+    let ty_owned = defs.ty_owned();
+    let ty_owned_inner = defs.ty_owned_inner();
+    let body: Owned<_> = arg_name.to_owned_unchecked(defs);
+    quote! {
+        impl std::convert::From<#ty_owned_inner> for #ty_owned {
+            fn from(#arg_name: #ty_owned_inner) -> Self {
+                #body
+            }
+        }
+    }
+}
+
 /// Implements `Into<OwnedInner>` (actually `From<Owned> for OwnedInner`).
 pub(crate) fn impl_into_inner(defs: &Definitions) -> TokenStream {
     let ty_owned = defs.ty_owned();

@@ -147,6 +147,15 @@ mod owned {
     }
 
     gen_test! {
+        name: from_inner,
+        #[custom_slice(derive(FromInner))]
+        owned: Vec<u8>,
+        owned_tests: { FromInner },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
         name: into_inner,
         #[custom_slice(derive(IntoInner))]
         owned: Vec<u8>,
@@ -238,6 +247,24 @@ mod slice {
         #[custom_slice(derive(DefaultRefMut))]
         slice: [u8],
         slice_tests: { DefaultRefMut },
+    }
+
+    gen_test! {
+        name: from_inner,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(FromInner))]
+        slice: [u8],
+        slice_tests: { FromInner },
+    }
+
+    gen_test! {
+        name: from_inner_mut,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(FromInnerMut))]
+        slice: [u8],
+        slice_tests: { FromInnerMut },
     }
 
     gen_test! {

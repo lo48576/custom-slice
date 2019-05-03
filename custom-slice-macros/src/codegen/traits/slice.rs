@@ -95,6 +95,26 @@ pub(crate) fn impl_default_smartptr(defs: &Definitions, smartptr: impl SmartPtr)
     }
 }
 
+/// Implements `TryFrom<SliceInner>`.
+pub(crate) fn impl_from_inner(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
+    if defs.has_validator() {
+        panic!("`From<SliceInner>` cannot be implemented because a validator is specified");
+    }
+
+    let lt = quote!('a);
+    let ty_slice_ref = mutability.make_ref_with_lifetime(defs.ty_slice(), &lt);
+    let ty_slice_inner_ref = mutability.make_ref_with_lifetime(defs.ty_slice_inner(), &lt);
+    let arg_name = SliceInner::new(quote!(_v), mutability);
+    let body = arg_name.to_slice_unchecked(defs, Safety::Safe);
+    quote! {
+        impl<#lt> std::convert::From<#ty_slice_inner_ref> for #ty_slice_ref {
+            fn from(#arg_name: #ty_slice_inner_ref) -> Self {
+                #body
+            }
+        }
+    }
+}
+
 /// Implements `From<&Slice>` for `{Arc, Box, Rc}<Slice>`.
 pub(crate) fn impl_into_smartptr(defs: &Definitions, smartptr: impl SmartPtr) -> TokenStream {
     let ty_slice = defs.ty_slice();
