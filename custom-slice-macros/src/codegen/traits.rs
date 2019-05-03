@@ -123,15 +123,20 @@ impl CmpTrait {
         }
     }
 
-    pub(crate) fn impl_(self, defs: &Definitions, lhs: RefType, rhs: RefType) -> impl ToTokens {
+    pub(crate) fn impl_with_slice(
+        self,
+        defs: &Definitions,
+        lhs: RefType,
+        rhs: RefType,
+    ) -> impl ToTokens {
         let trait_path = self.trait_path();
         let method = self.method_name();
         let ty_ret = self.ty_ret();
         let arg_rhs = &quote!(__other);
 
         let ty_slice = defs.ty_slice();
-        let expr_lhs = lhs.ref_to_slice_inner_ref(defs, quote!(self));
-        let expr_rhs = rhs.ref_to_slice_inner_ref(defs, arg_rhs);
+        let expr_lhs = lhs.ref_to_slice_ref(defs, quote!(self));
+        let expr_rhs = rhs.ref_to_slice_ref(defs, arg_rhs);
         let ty_lhs = lhs.ty(defs);
         let ty_rhs = rhs.ty(defs);
 

@@ -84,11 +84,7 @@ impl RefType {
     }
 
     /// Converts the given reference type expression to `&Slice` type.
-    pub(crate) fn ref_to_slice_inner_ref(
-        self,
-        defs: &Definitions,
-        expr: impl ToTokens,
-    ) -> TokenStream {
+    pub(crate) fn ref_to_slice_ref(self, defs: &Definitions, expr: impl ToTokens) -> TokenStream {
         let ty_slice = defs.ty_slice();
         match self {
             RefType::Slice => expr.into_token_stream(),

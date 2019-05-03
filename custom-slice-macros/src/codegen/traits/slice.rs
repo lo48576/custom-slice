@@ -57,16 +57,16 @@ pub(crate) fn impl_as_ref_slice_inner(
 pub(crate) fn impl_cmp_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
     let mut tokens = TokenStream::new();
     target
-        .impl_(defs, RefType::Slice, RefType::RefSlice)
+        .impl_with_slice(defs, RefType::Slice, RefType::RefSlice)
         .to_tokens(&mut tokens);
     target
-        .impl_(defs, RefType::RefSlice, RefType::Slice)
+        .impl_with_slice(defs, RefType::RefSlice, RefType::Slice)
         .to_tokens(&mut tokens);
     target
-        .impl_(defs, RefType::Slice, RefType::CowSlice)
+        .impl_with_slice(defs, RefType::Slice, RefType::CowSlice)
         .to_tokens(&mut tokens);
     target
-        .impl_(defs, RefType::CowSlice, RefType::Slice)
+        .impl_with_slice(defs, RefType::CowSlice, RefType::Slice)
         .to_tokens(&mut tokens);
 
     tokens

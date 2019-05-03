@@ -90,7 +90,7 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
 /// Implements `PartialEq` and `PartialOrd` using comparison of `Slice` type.
 pub(crate) fn impl_cmp(defs: &Definitions, target: CmpTrait) -> TokenStream {
     target
-        .impl_(defs, RefType::Owned, RefType::Owned)
+        .impl_with_slice(defs, RefType::Owned, RefType::Owned)
         .into_token_stream()
 }
 
@@ -98,22 +98,22 @@ pub(crate) fn impl_cmp(defs: &Definitions, target: CmpTrait) -> TokenStream {
 pub(crate) fn impl_cmp_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
     let mut tokens = TokenStream::new();
     target
-        .impl_(defs, RefType::Owned, RefType::Slice)
+        .impl_with_slice(defs, RefType::Owned, RefType::Slice)
         .to_tokens(&mut tokens);
     target
-        .impl_(defs, RefType::Slice, RefType::Owned)
+        .impl_with_slice(defs, RefType::Slice, RefType::Owned)
         .to_tokens(&mut tokens);
     target
-        .impl_(defs, RefType::Owned, RefType::RefSlice)
+        .impl_with_slice(defs, RefType::Owned, RefType::RefSlice)
         .to_tokens(&mut tokens);
     target
-        .impl_(defs, RefType::RefSlice, RefType::Owned)
+        .impl_with_slice(defs, RefType::RefSlice, RefType::Owned)
         .to_tokens(&mut tokens);
     target
-        .impl_(defs, RefType::Owned, RefType::CowSlice)
+        .impl_with_slice(defs, RefType::Owned, RefType::CowSlice)
         .to_tokens(&mut tokens);
     target
-        .impl_(defs, RefType::CowSlice, RefType::Owned)
+        .impl_with_slice(defs, RefType::CowSlice, RefType::Owned)
         .to_tokens(&mut tokens);
 
     tokens
