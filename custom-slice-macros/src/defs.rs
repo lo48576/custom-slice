@@ -22,10 +22,10 @@ mod builder;
 
 /// Definitions.
 pub(crate) struct Definitions {
-    /// Slice type definition.
-    slice: CustomType,
     /// Owned type definition.
     owned: CustomType,
+    /// Slice type definition.
+    slice: CustomType,
     /// Validator function definition.
     validator: Option<Validator>,
 }
@@ -36,28 +36,28 @@ impl Definitions {
         let mut tokens = TokenStream::new();
 
         // Type definitions.
-        self.slice.create_item().to_tokens(&mut tokens);
         self.owned.create_item().to_tokens(&mut tokens);
+        self.slice.create_item().to_tokens(&mut tokens);
         // Validator function definition.
         if let Some(validator) = &self.validator {
             validator.create_item().to_tokens(&mut tokens);
         }
 
-        // Methods for slice type.
-        self.impl_methods_for_slice().to_tokens(&mut tokens);
         // Methods for owned type.
         self.impl_methods_for_owned().to_tokens(&mut tokens);
+        // Methods for slice type.
+        self.impl_methods_for_slice().to_tokens(&mut tokens);
 
-        // `ToOwned` for slice type.
-        traits::slice::impl_to_owned(self).to_tokens(&mut tokens);
         // `Borrow` for owned type.
         traits::owned::impl_borrow(self, Constant).to_tokens(&mut tokens);
+        // `ToOwned` for slice type.
+        traits::slice::impl_to_owned(self).to_tokens(&mut tokens);
 
-        // std trait impls for slice types.
-        self.impl_derives_for_slice()
-            .for_each(|v| v.to_tokens(&mut tokens));
         // std trait impls for owned types.
         self.impl_derives_for_owned()
+            .for_each(|v| v.to_tokens(&mut tokens));
+        // std trait impls for slice types.
+        self.impl_derives_for_slice()
             .for_each(|v| v.to_tokens(&mut tokens));
 
         tokens
@@ -105,104 +105,6 @@ impl Definitions {
         let ty_owned = self.ty_owned();
         let field = self.owned.field_name();
         Owned::new(quote!(#ty_owned { #field: #inner }))
-    }
-
-    /// Implements methods for the slice type.
-    fn impl_methods_for_slice(&self) -> Option<TokenStream> {
-        let mut body = TokenStream::new();
-        self.impl_slice_constructor_unchecked("new_unchecked", Constant)
-            .to_tokens(&mut body);
-        self.impl_slice_constructor_unchecked("new_unchecked_mut", Mutable)
-            .to_tokens(&mut body);
-        self.impl_slice_constructor_checked("new_checked", Constant)
-            .to_tokens(&mut body);
-        self.impl_slice_constructor_checked("new_checked_mut", Mutable)
-            .to_tokens(&mut body);
-        self.impl_slice_accessor("get_ref", Constant)
-            .to_tokens(&mut body);
-        self.impl_slice_accessor("get_mut", Mutable)
-            .to_tokens(&mut body);
-
-        if body.is_empty() {
-            return None;
-        }
-        let ty_slice = self.slice.outer_type();
-        Some(quote!(impl #ty_slice { #body }))
-    }
-
-    fn impl_slice_constructor_unchecked(
-        &self,
-        attr_name: &str,
-        mutability: impl Mutability,
-    ) -> Option<ItemFn> {
-        let arg_name = SliceInner::new(quote!(_v), mutability);
-        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
-        let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
-
-        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
-        let mut new_fn = fn_prefix
-            .build_item_with_named_arg(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote!())
-            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let block = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
-        *new_fn.block = parse_quote!({ #block });
-        Some(new_fn)
-    }
-
-    fn impl_slice_constructor_checked(
-        &self,
-        attr_name: &str,
-        mutability: impl Mutability,
-    ) -> Option<ItemFn> {
-        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
-        let arg_name = SliceInner::new(quote!(_v), mutability);
-        let error_var = &quote!(_e);
-
-        let (ty_error, mapped_error) =
-            get_error_ty_and_val(&self.slice.attrs, error_var, &arg_name);
-
-        let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
-        let mut new_fn = fn_prefix
-            .build_item_with_named_arg(
-                &arg_name,
-                mutability.make_ref(self.slice.inner_type()),
-                quote!(std::result::Result<#ty_slice_ref, #ty_error>),
-                quote!(),
-            )
-            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        let block = {
-            let expr_outer = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
-            let fn_validate = match &self.validator {
-                Some(v) => v.name(),
-                None => panic!(
-                    "Validator should be necessary for checked constructor: attr_name = {:?}",
-                    attr_name
-                ),
-            };
-            parse_quote!({
-                match #fn_validate(#arg_name) {
-                    Ok(_) => Ok(#expr_outer),
-                    Err(#error_var) => Err(#mapped_error),
-                }
-            })
-        };
-        *new_fn.block = block;
-        Some(new_fn)
-    }
-
-    fn impl_slice_accessor(&self, attr_name: &str, mutability: impl Mutability) -> Option<ItemFn> {
-        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
-
-        let self_ref = mutability.make_ref(quote!(self));
-        let slice = Slice::new(quote!(self), mutability);
-        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
-        let new_fn = fn_prefix
-            .build_item_with_raw_args(
-                &self_ref,
-                ty_slice_inner_ref,
-                slice.to_slice_inner_ref(self),
-            )
-            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
-        Some(new_fn)
     }
 
     /// Implements methods for the owned type.
@@ -303,23 +205,102 @@ impl Definitions {
         Some(new_fn)
     }
 
-    /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
-    /// the slice type.
-    fn impl_derives_for_slice<'a>(&'a self) -> impl Iterator<Item = TokenStream> + 'a {
-        self.slice.attrs.derives().map(move |derive| {
-            let derive = derive.to_string();
-            match derive.as_str() {
-                "DefaultArc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Arc),
-                "DefaultBox" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Box),
-                "DefaultRc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Rc),
-                "DefaultRef" => traits::slice::impl_default_ref(self, Constant),
-                "DefaultRefMut" => traits::slice::impl_default_ref(self, Mutable),
-                "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
-                "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
-                "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),
-                derive => panic!("Unknown derive target for slice type: {:?}", derive),
-            }
-        })
+    /// Implements methods for the slice type.
+    fn impl_methods_for_slice(&self) -> Option<TokenStream> {
+        let mut body = TokenStream::new();
+        self.impl_slice_constructor_unchecked("new_unchecked", Constant)
+            .to_tokens(&mut body);
+        self.impl_slice_constructor_unchecked("new_unchecked_mut", Mutable)
+            .to_tokens(&mut body);
+        self.impl_slice_constructor_checked("new_checked", Constant)
+            .to_tokens(&mut body);
+        self.impl_slice_constructor_checked("new_checked_mut", Mutable)
+            .to_tokens(&mut body);
+        self.impl_slice_accessor("get_ref", Constant)
+            .to_tokens(&mut body);
+        self.impl_slice_accessor("get_mut", Mutable)
+            .to_tokens(&mut body);
+
+        if body.is_empty() {
+            return None;
+        }
+        let ty_slice = self.slice.outer_type();
+        Some(quote!(impl #ty_slice { #body }))
+    }
+
+    fn impl_slice_constructor_unchecked(
+        &self,
+        attr_name: &str,
+        mutability: impl Mutability,
+    ) -> Option<ItemFn> {
+        let arg_name = SliceInner::new(quote!(_v), mutability);
+        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
+        let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
+
+        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
+        let mut new_fn = fn_prefix
+            .build_item_with_named_arg(&arg_name, ty_slice_inner_ref, ty_slice_ref, quote!())
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        let block = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
+        *new_fn.block = parse_quote!({ #block });
+        Some(new_fn)
+    }
+
+    fn impl_slice_constructor_checked(
+        &self,
+        attr_name: &str,
+        mutability: impl Mutability,
+    ) -> Option<ItemFn> {
+        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
+        let arg_name = SliceInner::new(quote!(_v), mutability);
+        let error_var = &quote!(_e);
+
+        let (ty_error, mapped_error) =
+            get_error_ty_and_val(&self.slice.attrs, error_var, &arg_name);
+
+        let ty_slice_ref = mutability.make_ref(self.slice.outer_type());
+        let mut new_fn = fn_prefix
+            .build_item_with_named_arg(
+                &arg_name,
+                mutability.make_ref(self.slice.inner_type()),
+                quote!(std::result::Result<#ty_slice_ref, #ty_error>),
+                quote!(),
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        let block = {
+            let expr_outer = arg_name.to_slice_unchecked(self, Safety::from(&new_fn.unsafety));
+            let fn_validate = match &self.validator {
+                Some(v) => v.name(),
+                None => panic!(
+                    "Validator should be necessary for checked constructor: attr_name = {:?}",
+                    attr_name
+                ),
+            };
+            parse_quote!({
+                match #fn_validate(#arg_name) {
+                    Ok(_) => Ok(#expr_outer),
+                    Err(#error_var) => Err(#mapped_error),
+                }
+            })
+        };
+        *new_fn.block = block;
+        Some(new_fn)
+    }
+
+    fn impl_slice_accessor(&self, attr_name: &str, mutability: impl Mutability) -> Option<ItemFn> {
+        let fn_prefix = self.slice.attrs.get_fn_prefix(attr_name)?;
+
+        let self_ref = mutability.make_ref(quote!(self));
+        let slice = Slice::new(quote!(self), mutability);
+        let ty_slice_inner_ref = mutability.make_ref(self.slice.inner_type());
+        let new_fn = fn_prefix
+            .build_item_with_raw_args(
+                &self_ref,
+                ty_slice_inner_ref,
+                slice.to_slice_inner_ref(self),
+            )
+            .unwrap_or_else(|e| panic!("Failed to parse `{}` attribute: {}", attr_name, e));
+        Some(new_fn)
     }
 
     /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
@@ -335,6 +316,25 @@ impl Definitions {
                 "BorrowMut" => traits::owned::impl_borrow(self, Mutable),
                 "Deref" => traits::owned::impl_deref(self, Constant),
                 "DerefMut" => traits::owned::impl_deref(self, Mutable),
+                derive => panic!("Unknown derive target for slice type: {:?}", derive),
+            }
+        })
+    }
+
+    /// Implement traits specified by `#[custom_slice(derive(Foo, Bar))]` for
+    /// the slice type.
+    fn impl_derives_for_slice<'a>(&'a self) -> impl Iterator<Item = TokenStream> + 'a {
+        self.slice.attrs.derives().map(move |derive| {
+            let derive = derive.to_string();
+            match derive.as_str() {
+                "DefaultArc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Arc),
+                "DefaultBox" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Box),
+                "DefaultRc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Rc),
+                "DefaultRef" => traits::slice::impl_default_ref(self, Constant),
+                "DefaultRefMut" => traits::slice::impl_default_ref(self, Mutable),
+                "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
+                "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
+                "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })
