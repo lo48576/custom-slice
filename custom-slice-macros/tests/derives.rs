@@ -109,6 +109,15 @@ mod owned {
         slice: [u8],
         slice_tests: {},
     }
+
+    gen_test! {
+        name: into_inner,
+        #[custom_slice(derive(IntoInner))]
+        owned: Vec<u8>,
+        owned_tests: { IntoInner },
+        slice: [u8],
+        slice_tests: {},
+    }
 }
 
 mod slice {

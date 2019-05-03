@@ -5,7 +5,7 @@ use quote::quote;
 
 use crate::{
     codegen::{
-        expr::{Owned, Slice, SliceInner},
+        expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{DynMutability, Mutability, Safety},
         traits::OwnedToSliceTrait,
     },
@@ -110,6 +110,21 @@ pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> Tok
             #target
 
             fn #fn_deref(#self_ref) -> #ty_slice_ref {
+                #body
+            }
+        }
+    }
+}
+
+/// Implements `Into<OwnedInner>` (actually `From<Owned> for OwnedInner`).
+pub(crate) fn impl_into_inner(defs: &Definitions) -> TokenStream {
+    let ty_owned = defs.ty_owned();
+    let ty_owned_inner = defs.ty_owned_inner();
+    let arg_name = Owned::new(quote!(_v));
+    let body: OwnedInner<_> = arg_name.to_owned_inner(defs);
+    quote! {
+        impl std::convert::From<#ty_owned> for #ty_owned_inner {
+            fn from(#arg_name: #ty_owned) -> Self {
                 #body
             }
         }

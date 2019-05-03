@@ -70,6 +70,12 @@ macro_rules! ensure_owned_traits {
             $owned: std::ops::DerefMut<Target = $slice>,
         {}
     };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = IntoInner) => {
+        #[test]
+        fn into_inner() where
+            $owned_i: std::convert::From<$owned>,
+        {}
+    };
     (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = $target:ident) => {
         compile_error!("Unknown target");
     };

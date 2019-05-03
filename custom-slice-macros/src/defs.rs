@@ -316,6 +316,7 @@ impl Definitions {
                 "BorrowMut" => traits::owned::impl_borrow(self, Mutable),
                 "Deref" => traits::owned::impl_deref(self, Constant),
                 "DerefMut" => traits::owned::impl_deref(self, Mutable),
+                "IntoInner" => traits::owned::impl_into_inner(self),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
             }
         })
