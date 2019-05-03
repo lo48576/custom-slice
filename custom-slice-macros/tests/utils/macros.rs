@@ -97,6 +97,30 @@ macro_rules! ensure_slice_traits {
             $slice: std::borrow::ToOwned<Owned = $owned>,
         {}
     };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = AsRefSlice) => {
+        #[test]
+        fn as_ref_slice() where
+            $slice: std::convert::AsRef<$slice>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = AsRefSliceInner) => {
+        #[test]
+        fn as_ref_slice_inner() where
+            $slice: std::convert::AsRef<$slice_i>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = AsMutSlice) => {
+        #[test]
+        fn as_mut_slice() where
+            $slice: std::convert::AsMut<$slice>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = AsMutSliceInner) => {
+        #[test]
+        fn as_mut_slice_inner() where
+            $slice: std::convert::AsMut<$slice_i>,
+        {}
+    };
     (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = DefaultBox) => {
         #[test]
         fn default_box() where

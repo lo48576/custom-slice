@@ -327,6 +327,10 @@ impl Definitions {
         self.slice.attrs.derives().map(move |derive| {
             let derive = derive.to_string();
             match derive.as_str() {
+                "AsRefSlice" => traits::slice::impl_as_ref_slice(self, Constant),
+                "AsRefSliceInner" => traits::slice::impl_as_ref_slice_inner(self, Constant),
+                "AsMutSlice" => traits::slice::impl_as_ref_slice(self, Mutable),
+                "AsMutSliceInner" => traits::slice::impl_as_ref_slice_inner(self, Mutable),
                 "DefaultArc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Arc),
                 "DefaultBox" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Box),
                 "DefaultRc" => traits::slice::impl_default_smartptr(self, StdSmartPtr::Rc),

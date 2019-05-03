@@ -7,10 +7,51 @@ use crate::{
     codegen::{
         expr::{Owned, Slice, SliceInner},
         props::{Constant, Mutability, Safety},
+        traits::OwnedToSliceTrait,
         types::{SmartPtr, SmartPtrExt},
     },
     defs::Definitions,
 };
+
+/// Implements `AsRef<Slice>` or `AsMut<Slice>`.
+pub(crate) fn impl_as_ref_slice(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
+    let trait_as_ref = OwnedToSliceTrait::AsRef.trait_path(mutability);
+    let fn_as_ref = OwnedToSliceTrait::AsRef.method_name(mutability);
+
+    let ty_slice = defs.ty_slice();
+    let ty_slice_ref = mutability.make_ref(&ty_slice);
+    let self_ref = mutability.make_ref(quote!(self));
+    quote! {
+        impl #trait_as_ref<#ty_slice> for #ty_slice {
+            fn #fn_as_ref(#self_ref) -> #ty_slice_ref {
+                self
+            }
+        }
+    }
+}
+
+/// Implements `AsRef<SliceInner>` or `AsMut<SliceInner>`.
+pub(crate) fn impl_as_ref_slice_inner(
+    defs: &Definitions,
+    mutability: impl Mutability,
+) -> TokenStream {
+    let trait_as_ref = OwnedToSliceTrait::AsRef.trait_path(mutability);
+    let fn_as_ref = OwnedToSliceTrait::AsRef.method_name(mutability);
+
+    let ty_slice = defs.ty_slice();
+    let ty_slice_inner = defs.ty_slice_inner();
+    let ty_slice_inner_ref = mutability.make_ref(&ty_slice_inner);
+    let self_ref = mutability.make_ref(quote!(self));
+
+    let body: SliceInner<_, _> = Slice::new(quote!(self), mutability).to_slice_inner_ref(defs);
+    quote! {
+        impl #trait_as_ref<#ty_slice_inner> for #ty_slice {
+            fn #fn_as_ref(#self_ref) -> #ty_slice_inner_ref {
+                #body
+            }
+        }
+    }
+}
 
 /// Implements `Default` for `&Slice` or `&mut Slice`.
 pub(crate) fn impl_default_ref(defs: &Definitions, mutability: impl Mutability) -> TokenStream {

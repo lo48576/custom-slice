@@ -121,6 +121,42 @@ mod slice {
     }
 
     gen_test! {
+        name: as_ref_slice,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(AsRefSlice))]
+        slice: [u8],
+        slice_tests: { AsRefSlice },
+    }
+
+    gen_test! {
+        name: as_ref_slice_inner,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(AsRefSliceInner))]
+        slice: [u8],
+        slice_tests: { AsRefSliceInner },
+    }
+
+    gen_test! {
+        name: as_mut_slice,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(AsMutSlice))]
+        slice: [u8],
+        slice_tests: { AsMutSlice },
+    }
+
+    gen_test! {
+        name: as_mut_slice_inner,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(AsMutSliceInner))]
+        slice: [u8],
+        slice_tests: { AsMutSliceInner },
+    }
+
+    gen_test! {
         name: default_box,
         owned: Vec<u8>,
         owned_tests: {},
