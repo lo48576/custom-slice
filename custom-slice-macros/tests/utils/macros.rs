@@ -217,6 +217,18 @@ macro_rules! ensure_slice_traits {
             for<'a> &'a mut $slice: std::default::Default,
         {}
     };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = Deref) => {
+        #[test]
+        fn deref() where
+            $slice: std::ops::Deref<Target = $slice_i>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = DerefMut) => {
+        #[test]
+        fn deref_mut() where
+            $slice: std::ops::DerefMut<Target = $slice_i>,
+        {}
+    };
     (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = FromInner) => {
         #[test]
         fn into_inner() where

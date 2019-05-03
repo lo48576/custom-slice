@@ -324,6 +324,7 @@ The following derive targets are available:
       `impl std::ops::Deref for Owned { type Target = Slice; /* .. */ }`
     + `DerefMut`:
       `impl std::ops::DerefMut for Owned { /* .. */ }`
+        + Requires `Deref<Target = Slice> for Owned`.
 
 #### Derive targets for slice types
 * `std::cmp::*`
@@ -398,6 +399,12 @@ The following derive targets are available:
     + `DefaultRefMut`:
       `impl std::default::Default for &mut Slice { /* .. */ }`
         * Requires `&mut SliceInner: Default`.
+* `std::ops::*`
+    + `Deref`:
+      `impl std::ops::Deref for Slice { type Target = SliceInner; /* .. */ }`
+    + `DerefMut`:
+      `impl std::ops::DerefMut for Slice { /* .. */ }`
+        + Requires `Deref<Target = SliceInner> for Slice`.
 
 
 ## License

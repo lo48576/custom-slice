@@ -6,7 +6,7 @@ use quote::{quote, ToTokens};
 use crate::{
     codegen::{
         expr::{Owned, Slice, SliceInner},
-        props::{Constant, Mutability, Safety},
+        props::{Constant, DynMutability, Mutability, Safety},
         traits::{CmpTrait, OwnedToSliceTrait},
         types::{RefType, SmartPtr, SmartPtrExt},
     },
@@ -159,6 +159,34 @@ pub(crate) fn impl_default_smartptr(defs: &Definitions, smartptr: impl SmartPtr)
         impl std::default::Default for #ty_smartptr_slice {
             fn default() -> Self {
                 unsafe { #expr_from_raw }
+            }
+        }
+    }
+}
+
+/// Implements `Deref` or `DerefMut`.
+pub(crate) fn impl_deref(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
+    let trait_deref = OwnedToSliceTrait::Deref.trait_path(mutability);
+    let fn_deref = OwnedToSliceTrait::Deref.method_name(mutability);
+
+    let ty_slice = defs.ty_slice();
+    let self_ref = mutability.make_ref(quote!(self));
+    let target = match mutability.into() {
+        DynMutability::Constant => {
+            let ty_slice_inner = defs.ty_slice_inner();
+            quote!(type Target = #ty_slice_inner;)
+        }
+        DynMutability::Mutable => quote!(),
+    };
+    let ty_ret = mutability.make_ref(quote!(Self::Target));
+
+    let body: SliceInner<_, _> = Slice::new(quote!(self), mutability).to_slice_inner_ref(defs);
+    quote! {
+        impl #trait_deref for #ty_slice {
+            #target
+
+            fn #fn_deref(#self_ref) -> #ty_ret {
+                #body
             }
         }
     }
