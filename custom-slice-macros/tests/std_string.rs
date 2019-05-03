@@ -24,7 +24,7 @@ impl Utf8Error {
 impl error::Error for Utf8Error {}
 
 impl fmt::Display for Utf8Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(error_len) = self.error_len {
             write!(f, "Invalid {} bytes from {}", error_len, self.valid_up_to)
         } else {

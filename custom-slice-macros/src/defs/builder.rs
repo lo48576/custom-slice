@@ -33,7 +33,7 @@ pub(crate) enum LoadError {
 impl error::Error for LoadError {}
 
 impl fmt::Display for LoadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LoadError::ExtraItems => write!(f, "Extra items found"),
             LoadError::NoSliceDefinitions => write!(f, "No slice definitions found"),
