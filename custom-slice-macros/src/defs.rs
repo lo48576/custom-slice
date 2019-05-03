@@ -417,7 +417,8 @@ impl CustomType {
     /// Returns the inner type expression from the outer type expression
     pub(crate) fn inner_expr(&self, outer_expr: impl ToTokens) -> TokenStream {
         let field_name = self.field_name();
-        quote!(#outer_expr.#field_name)
+        // `outer_expr` can be expressions such as `*self`.
+        quote!((#outer_expr).#field_name)
     }
 }
 
