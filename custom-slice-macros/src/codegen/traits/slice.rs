@@ -12,28 +12,6 @@ use crate::{
     defs::Definitions,
 };
 
-/// Implements `ToOwned`.
-pub(crate) fn impl_to_owned(defs: &Definitions) -> TokenStream {
-    let ty_owned = defs.ty_owned();
-
-    // `&Slice` -> `&SliceInner` -> `OwnedInner` -> `Owned`.
-    let owned: Owned<_> = Slice::new(quote!(self), Constant)
-        .to_slice_inner_ref(defs)
-        .to_owned_inner(defs)
-        .to_owned_unchecked(defs);
-
-    let ty_slice = defs.ty_slice();
-    quote! {
-        impl std::borrow::ToOwned for #ty_slice {
-            type Owned = #ty_owned;
-
-            fn to_owned(&self) -> Self::Owned {
-                #owned
-            }
-        }
-    }
-}
-
 /// Implements `Default` for `&Slice` or `&mut Slice`.
 pub(crate) fn impl_default_ref(defs: &Definitions, mutability: impl Mutability) -> TokenStream {
     let ty_slice_ref = mutability.make_ref(defs.ty_slice());
@@ -101,6 +79,28 @@ pub(crate) fn impl_into_smartptr(defs: &Definitions, smartptr: impl SmartPtr) ->
         impl std::convert::From<&#ty_slice> for #ty_smartptr_slice {
             fn from(#arg_name: &#ty_slice) -> Self {
                 unsafe { #expr_from_raw }
+            }
+        }
+    }
+}
+
+/// Implements `ToOwned`.
+pub(crate) fn impl_to_owned(defs: &Definitions) -> TokenStream {
+    let ty_owned = defs.ty_owned();
+
+    // `&Slice` -> `&SliceInner` -> `OwnedInner` -> `Owned`.
+    let owned: Owned<_> = Slice::new(quote!(self), Constant)
+        .to_slice_inner_ref(defs)
+        .to_owned_inner(defs)
+        .to_owned_unchecked(defs);
+
+    let ty_slice = defs.ty_slice();
+    quote! {
+        impl std::borrow::ToOwned for #ty_slice {
+            type Owned = #ty_owned;
+
+            fn to_owned(&self) -> Self::Owned {
+                #owned
             }
         }
     }
