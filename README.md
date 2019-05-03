@@ -267,6 +267,37 @@ The following derive targets are available:
 * `std::borrow::*`
     + `BorrowMut`:
       `impl std::borrow::BorrowMut<Slice> for Owned { /* .. */ }`
+* `std::cmp::*`
+    + `PartialEq`:
+      `impl std::cmp::PartialEq<Owned> for Owned { /* .. */ }`
+        * Requires `PartialEq<Slice> for Slice`.
+        * Usual `#[derive(PartialEq)]` uses
+          `<OwnedInner as PartialEq<OwnedInner>>` as its internal
+          implementation, but `#[custom_slice(derive(PartialEq))]` uses
+          `<Slice as PartialEq<Slice>>` internally.
+          If you define custom comparison for `Slice` type, you should use
+          `#[custom_slice(derive(PartialEq))]` for `Owned` type.
+    + `PartialEqBulk`: Many impls using `<Slice as PartialEq<Slice>>`.
+        * Requires `PartialEq<Slice> for Slice`.
+        * `impl PartialEq<Slice> for Owned`
+        * `impl PartialEq<Owned> for Slice`
+        * `impl PartialEq<&Slice> for Owned`
+        * `impl PartialEq<Owned> for &Slice`
+        * `impl PartialEq<Cow<Slice>> for Owned`
+        * `impl PartialEq<Owned> for Cow<Slice>`
+    + `PartialEqInnerBulk`: Many impls using
+      `<SliceInner as PartialEq<SliceInner>>`.
+        * Requires `PartialEq<SliceInner> for SliceInner`.
+        * `impl PartialEq<SliceInner> for Owned`
+        * `impl PartialEq<Owned> for SliceInner`
+        * `impl PartialEq<&SliceInner> for Owned`
+        * `impl PartialEq<Owned> for &SliceInner`
+        * `impl PartialEq<Cow<SliceInner>> for Owned`
+        * `impl PartialEq<Owned> for Cow<SliceInner>`
+    * `PartialOrd`, `PartialOrdBulk`, `PartialOrdInnerBulk`: `PartialOrd`
+      version of the corresponding `PartialEq*` targets.
+        * Requires the corresponding `PartialEq*` impls.
+        * See description of the corresponding `PartialEq*` for detail.
 * `std::convert::*`
     + `AsRefSlice`:
       `impl std::convert::AsRef<Slice> for Owned { /* .. */ }`
@@ -295,6 +326,34 @@ The following derive targets are available:
       `impl std::ops::DerefMut for Owned { /* .. */ }`
 
 #### Derive targets for slice types
+* `std::cmp::*`
+    + `PartialEqBulk`: Many impls using `<Slice as PartialEq<Slice>>`.
+        * Requires `PartialEq<Slice> for Slice`.
+        * `impl PartialEq<&Slice> for Slice`
+        * `impl PartialEq<Slice> for &Slice`
+        * `impl PartialEq<Cow<Slice>> for Slice`
+        * `impl PartialEq<Slice> for Cow<Slice>`
+    + `PartialEqInnerBulk`: Many impls using
+      `<SliceInner as PartialEq<SliceInner>>`.
+        * Requires `PartialEq<SliceInner> for SliceInner`.
+        * `impl PartialEq<SliceInner> for Slice`
+        * `impl PartialEq<Slice> for SliceInner`
+        * `impl PartialEq<&SliceInner> for Slice`
+        * `impl PartialEq<Slice> for &SliceInner`
+        * `impl PartialEq<OwnedInner> for Slice`
+        * `impl PartialEq<Slice> for OwnedInner`
+        * `impl PartialEq<Cow<SliceInner>> for Slice`
+        * `impl PartialEq<Slice> for Cow<SliceInner>`
+        * `impl PartialEq<SliceInner> for &Slice`
+        * `impl PartialEq<&Slice> for SliceInner`
+        * `impl PartialEq<OwnedInner> for &Slice`
+        * `impl PartialEq<&Slice> for OwnedInner`
+        * `impl PartialEq<Cow<SliceInner>> for &Slice`
+        * `impl PartialEq<&Slice> for Cow<SliceInner>`
+    * `PartialOrdBulk`, `PartialOrdInnerBulk`: `PartialOrd`
+      version of the corresponding `PartialEq*` targets.
+        * Requires the corresponding `PartialEq*` impls.
+        * See description of the corresponding `PartialEq*` for detail.
 * `std::convert::*`
     + `AsRefSlice`:
       `impl std::convert::AsRef<Slice> for Slice { /* .. */ }`
