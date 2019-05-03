@@ -271,6 +271,9 @@ The following derive targets are available:
     + `DerefMut`:
       `impl std::ops::DerefMut for Owned { /* .. */ }`
 * For slice types:
+    + `DefaultBox`:
+      `impl std::default::Default for Box<Slice> { /* .. */ }`
+        * Requires `Box<SliceInner>: Default`.
     + `DefaultRef`:
       `impl std::default::Default for &Slice { /* .. */ }`
         * Requires `&SliceInner: Default`.
