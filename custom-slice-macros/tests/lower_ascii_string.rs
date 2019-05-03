@@ -45,68 +45,121 @@ custom_slice_macros::define_slice_types_pair! {
     }
 }
 
-#[test]
-fn default() {
-    let _ = LowerAsciiString::default();
-    let _ = <&LowerAsciiStr>::default();
-}
+mod owned {
+    use super::*;
 
-#[test]
-fn new() {
-    {
-        let res: Result<LowerAsciiString, Error> = LowerAsciiString::new("hello".to_owned());
-        assert!(res.is_ok());
+    mod methods {
+        use super::*;
+
+        #[test]
+        fn new() {
+            let res: Result<LowerAsciiString, Error> = LowerAsciiString::new("hello".to_owned());
+            assert!(res.is_ok());
+        }
+
+        #[test]
+        fn new_should_fail() {
+            assert!(LowerAsciiString::new("Hello".to_owned()).is_err());
+        }
+
+        #[test]
+        fn new_unchecked() {
+            let _: LowerAsciiString =
+                unsafe { LowerAsciiString::new_unchecked("hello".to_owned()) };
+        }
     }
-    {
-        let res: Result<&LowerAsciiStr, Error> = LowerAsciiStr::new("hello");
-        assert!(res.is_ok());
+
+    mod traits {
+        use super::*;
+
+        #[test]
+        fn borrow()
+        where
+            LowerAsciiString: std::borrow::Borrow<LowerAsciiStr>,
+        {
+        }
+
+        #[test]
+        fn default()
+        where
+            LowerAsciiString: Default,
+        {
+        }
+
+        #[test]
+        fn deref()
+        where
+            LowerAsciiString: std::ops::Deref<Target = LowerAsciiStr>,
+        {
+        }
+
+        #[test]
+        fn deref_mut()
+        where
+            LowerAsciiString: std::ops::DerefMut<Target = LowerAsciiStr>,
+        {
+        }
     }
-    {
-        let mut hello = "hello".to_owned();
-        let hello_mut: &mut str = &mut hello;
-        let res: Result<&mut LowerAsciiStr, Error> = LowerAsciiStr::new_mut(hello_mut);
-        assert!(res.is_ok());
+}
+
+mod slice {
+    use super::*;
+
+    mod methods {
+        use super::*;
+
+        #[test]
+        fn new() {
+            let res: Result<&LowerAsciiStr, Error> = LowerAsciiStr::new("hello");
+            assert!(res.is_ok());
+        }
+
+        #[test]
+        fn new_should_fail() {
+            assert!(LowerAsciiStr::new("Hello").is_err());
+        }
+
+        #[test]
+        fn new_mut() {
+            let mut hello = "hello".to_owned();
+            let hello_mut: &mut str = &mut hello;
+            let res: Result<&mut LowerAsciiStr, Error> = LowerAsciiStr::new_mut(hello_mut);
+            assert!(res.is_ok());
+        }
+
+        #[test]
+        fn new_mut_should_fail() {
+            let mut hello = "Hello".to_owned();
+            let hello_mut: &mut str = &mut hello;
+            assert!(LowerAsciiStr::new(hello_mut).is_err());
+        }
+
+        #[test]
+        fn new_unchecked() {
+            let _: &LowerAsciiStr = unsafe { LowerAsciiStr::new_unchecked("hello") };
+            {
+                let mut hello = "hello".to_owned();
+                let hello_mut: &mut str = &mut hello;
+                let _: &mut LowerAsciiStr = unsafe { LowerAsciiStr::new_unchecked_mut(hello_mut) };
+            }
+        }
     }
-}
 
-#[test]
-fn new_should_fail() {
-    assert!(LowerAsciiString::new("Hello".to_owned()).is_err());
-    assert!(LowerAsciiStr::new("Hello").is_err());
-}
+    mod traits {
+        use super::*;
 
-#[test]
-fn new_unchecked() {
-    let _: LowerAsciiString = unsafe { LowerAsciiString::new_unchecked("hello".to_owned()) };
-    let _: &LowerAsciiStr = unsafe { LowerAsciiStr::new_unchecked("hello") };
-    {
-        let mut hello = "hello".to_owned();
-        let hello_mut: &mut str = &mut hello;
-        let _: &mut LowerAsciiStr = unsafe { LowerAsciiStr::new_unchecked_mut(hello_mut) };
+        #[test]
+        fn to_owned()
+        where
+            LowerAsciiStr: std::borrow::ToOwned<Owned = LowerAsciiString>,
+        {
+        }
+
+        #[test]
+        fn default_ref()
+        where
+            for<'a> &'a LowerAsciiStr: Default,
+        {
+        }
     }
-}
-
-#[test]
-fn borrow_and_to_owned() {
-    use std::borrow::{Borrow, ToOwned};
-
-    let string = LowerAsciiString::default();
-    let s: &LowerAsciiStr = string.borrow();
-    let _: LowerAsciiString = s.to_owned();
-}
-
-#[test]
-fn deref() {
-    use std::ops::Deref;
-
-    let string = LowerAsciiString::default();
-    let _: &LowerAsciiStr = <LowerAsciiString as Deref>::deref(&string);
-}
-
-#[test]
-fn deref_mut() {
-    use std::ops::DerefMut;
-
-    let mut string = LowerAsciiString::default();
-    let _: &mut LowerAsciiStr = <LowerAsciiString as DerefMut>::deref_mut(&mut string);
 }

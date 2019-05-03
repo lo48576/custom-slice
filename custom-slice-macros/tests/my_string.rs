@@ -19,71 +19,120 @@ custom_slice_macros::define_slice_types_pair! {
     pub struct MyStr(str);
 }
 
-#[test]
-fn default() {
-    let _ = MyString::default();
-    let _ = <&MyStr>::default();
-}
+mod owned {
+    use super::*;
 
-#[test]
-fn new() {
-    let _: MyString = MyString::new("Hello".to_owned());
-    let _: &MyStr = MyStr::new("Hello");
-    {
-        let mut hello = "Hello".to_owned();
-        let hello_mut: &mut str = &mut hello;
-        let _: &mut MyStr = MyStr::new_mut(hello_mut);
+    mod methods {
+        use super::*;
+
+        #[test]
+        fn new() {
+            let _: MyString = MyString::new("Hello".to_owned());
+        }
+    }
+
+    mod traits {
+        use super::*;
+
+        #[test]
+        fn borrow()
+        where
+            MyString: std::borrow::Borrow<MyStr>,
+        {
+        }
+
+        #[test]
+        fn default()
+        where
+            MyString: Default,
+        {
+        }
+
+        #[test]
+        fn deref()
+        where
+            MyString: std::ops::Deref<Target = MyStr>,
+        {
+        }
+
+        #[test]
+        fn deref_mut()
+        where
+            MyString: std::ops::DerefMut<Target = MyStr>,
+        {
+        }
     }
 }
 
-#[test]
-fn borrow_and_to_owned() {
-    use std::borrow::{Borrow, ToOwned};
+mod slice {
+    use super::*;
 
-    let string = MyString::default();
-    let s: &MyStr = string.borrow();
-    let _: MyString = s.to_owned();
-}
+    mod methods {
+        use super::*;
 
-#[test]
-fn deref() {
-    use std::ops::Deref;
+        #[test]
+        fn new() {
+            let _: &MyStr = MyStr::new("Hello");
+        }
 
-    let string = MyString::default();
-    let _: &MyStr = <MyString as Deref>::deref(&string);
-}
+        #[test]
+        fn new_mut() {
+            let mut hello = "Hello".to_owned();
+            let hello_mut: &mut str = &mut hello;
+            let _: &mut MyStr = MyStr::new_mut(hello_mut);
+        }
+    }
 
-#[test]
-fn deref_mut() {
-    use std::ops::DerefMut;
+    mod traits {
+        use super::*;
 
-    let mut string = MyString::default();
-    let _: &mut MyStr = <MyString as DerefMut>::deref_mut(&mut string);
-}
+        #[test]
+        fn to_owned()
+        where
+            MyStr: std::borrow::ToOwned<Owned = MyString>,
+        {
+        }
 
-#[test]
-fn default_box() {
-    let _: Box<MyStr> = Default::default();
-}
+        #[test]
+        fn default_ref()
+        where
+            for<'a> &'a MyStr: Default,
+        {
+        }
 
-#[test]
-fn into_arc() {
-    use std::sync::Arc;
+        #[test]
+        fn default_ref_mut()
+        where
+            for<'a> &'a mut MyStr: Default,
+        {
+        }
 
-    let s: &MyStr = Default::default();
-    let _: Arc<MyStr> = Arc::<MyStr>::from(s);
-}
+        #[test]
+        fn default_box()
+        where
+            Box<MyStr>: Default,
+        {
+        }
 
-#[test]
-fn into_box() {
-    let s: &MyStr = Default::default();
-    let _: Box<MyStr> = Box::<MyStr>::from(s);
-}
+        #[test]
+        fn into_arc()
+        where
+            for<'a> std::sync::Arc<MyStr>: From<&'a MyStr>,
+        {
+        }
 
-#[test]
-fn into_rc() {
-    use std::rc::Rc;
+        #[test]
+        fn into_box()
+        where
+            for<'a> Box<MyStr>: From<&'a MyStr>,
+        {
+        }
 
-    let s: &MyStr = Default::default();
-    let _: Rc<MyStr> = Rc::<MyStr>::from(s);
+        #[test]
+        fn into_rc()
+        where
+            for<'a> std::rc::Rc<MyStr>: From<&'a MyStr>,
+        {
+        }
+    }
 }
