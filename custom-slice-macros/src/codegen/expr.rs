@@ -4,7 +4,10 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::{
-    codegen::props::{Constant, Mutability, Safety},
+    codegen::{
+        props::{Mutability, Safety},
+        traits::OwnedToSliceTrait,
+    },
     defs::Definitions,
 };
 
@@ -37,17 +40,24 @@ impl<T: ToTokens> OwnedInner<T> {
         Self(expr)
     }
 
-    pub(crate) fn to_slice_inner_ref(
+    pub(crate) fn as_ref(&self) -> OwnedInner<&T> {
+        OwnedInner::new(&self.0)
+    }
+
+    pub(crate) fn to_slice_inner_ref<M: Mutability>(
         &self,
         defs: &Definitions,
-    ) -> SliceInner<TokenStream, Constant> {
-        let ty_slice_inner = defs.ty_slice_inner();
-        let ty_owned_inner = defs.ty_owned_inner();
+        conv_trait: OwnedToSliceTrait,
+        mutability: M,
+    ) -> SliceInner<impl ToTokens, M> {
         SliceInner::new(
-            quote! {
-                <#ty_owned_inner as std::borrow::Borrow<#ty_slice_inner>>::borrow(&#self)
-            },
-            Constant,
+            conv_trait.expr_call(
+                defs.ty_owned_inner(),
+                defs.ty_slice_inner(),
+                mutability.make_ref(self),
+                mutability,
+            ),
+            mutability,
         )
     }
 
@@ -100,6 +110,10 @@ pub(crate) struct SliceInner<T, M> {
 impl<T: ToTokens, M: Mutability> SliceInner<T, M> {
     pub(crate) fn new(expr: T, mutability: M) -> Self {
         Self { expr, mutability }
+    }
+
+    pub(crate) fn as_ref(&self) -> SliceInner<&T, M> {
+        SliceInner::new(&self.expr, self.mutability)
     }
 
     pub(crate) fn to_owned_inner(&self, defs: &Definitions) -> OwnedInner<TokenStream> {

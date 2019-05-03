@@ -2,12 +2,15 @@
 
 use std::{error, fmt};
 
+#[macro_use]
+mod utils;
+
 /// Error for lower ascii string creation.
 #[derive(Debug, Clone, Copy)]
 pub struct Error(char);
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Non-ascii-lowercase character: {:?}", self.0)
     }
 }
@@ -45,68 +48,91 @@ custom_slice_macros::define_slice_types_pair! {
     }
 }
 
-#[test]
-fn default() {
-    let _ = LowerAsciiString::default();
-    let _ = <&LowerAsciiStr>::default();
-}
+mod owned {
+    use super::*;
 
-#[test]
-fn new() {
-    {
-        let res: Result<LowerAsciiString, Error> = LowerAsciiString::new("hello".to_owned());
-        assert!(res.is_ok());
-    }
-    {
-        let res: Result<&LowerAsciiStr, Error> = LowerAsciiStr::new("hello");
-        assert!(res.is_ok());
-    }
-    {
-        let mut hello = "hello".to_owned();
-        let hello_mut: &mut str = &mut hello;
-        let res: Result<&mut LowerAsciiStr, Error> = LowerAsciiStr::new_mut(hello_mut);
-        assert!(res.is_ok());
-    }
-}
+    mod methods {
+        use super::*;
 
-#[test]
-fn new_should_fail() {
-    assert!(LowerAsciiString::new("Hello".to_owned()).is_err());
-    assert!(LowerAsciiStr::new("Hello").is_err());
-}
+        #[test]
+        fn new() {
+            let res: Result<LowerAsciiString, Error> = LowerAsciiString::new("hello".to_owned());
+            assert!(res.is_ok());
+        }
 
-#[test]
-fn new_unchecked() {
-    let _: LowerAsciiString = unsafe { LowerAsciiString::new_unchecked("hello".to_owned()) };
-    let _: &LowerAsciiStr = unsafe { LowerAsciiStr::new_unchecked("hello") };
-    {
-        let mut hello = "hello".to_owned();
-        let hello_mut: &mut str = &mut hello;
-        let _: &mut LowerAsciiStr = unsafe { LowerAsciiStr::new_unchecked_mut(hello_mut) };
+        #[test]
+        fn new_should_fail() {
+            assert!(LowerAsciiString::new("Hello".to_owned()).is_err());
+        }
+
+        #[test]
+        fn new_unchecked() {
+            let _: LowerAsciiString =
+                unsafe { LowerAsciiString::new_unchecked("hello".to_owned()) };
+        }
+    }
+
+    mod traits {
+        use super::*;
+
+        ensure_owned_traits! {
+            owned { LowerAsciiString: String },
+            slice { LowerAsciiStr: str },
+            targets { Borrow, Default, Deref, DerefMut }
+        }
     }
 }
 
-#[test]
-fn borrow_and_to_owned() {
-    use std::borrow::{Borrow, ToOwned};
+mod slice {
+    use super::*;
 
-    let string = LowerAsciiString::default();
-    let s: &LowerAsciiStr = string.borrow();
-    let _: LowerAsciiString = s.to_owned();
-}
+    mod methods {
+        use super::*;
 
-#[test]
-fn deref() {
-    use std::ops::Deref;
+        #[test]
+        fn new() {
+            let res: Result<&LowerAsciiStr, Error> = LowerAsciiStr::new("hello");
+            assert!(res.is_ok());
+        }
 
-    let string = LowerAsciiString::default();
-    let _: &LowerAsciiStr = <LowerAsciiString as Deref>::deref(&string);
-}
+        #[test]
+        fn new_should_fail() {
+            assert!(LowerAsciiStr::new("Hello").is_err());
+        }
 
-#[test]
-fn deref_mut() {
-    use std::ops::DerefMut;
+        #[test]
+        fn new_mut() {
+            let mut hello = "hello".to_owned();
+            let hello_mut: &mut str = &mut hello;
+            let res: Result<&mut LowerAsciiStr, Error> = LowerAsciiStr::new_mut(hello_mut);
+            assert!(res.is_ok());
+        }
 
-    let mut string = LowerAsciiString::default();
-    let _: &mut LowerAsciiStr = <LowerAsciiString as DerefMut>::deref_mut(&mut string);
+        #[test]
+        fn new_mut_should_fail() {
+            let mut hello = "Hello".to_owned();
+            let hello_mut: &mut str = &mut hello;
+            assert!(LowerAsciiStr::new(hello_mut).is_err());
+        }
+
+        #[test]
+        fn new_unchecked() {
+            let _: &LowerAsciiStr = unsafe { LowerAsciiStr::new_unchecked("hello") };
+            {
+                let mut hello = "hello".to_owned();
+                let hello_mut: &mut str = &mut hello;
+                let _: &mut LowerAsciiStr = unsafe { LowerAsciiStr::new_unchecked_mut(hello_mut) };
+            }
+        }
+    }
+
+    mod traits {
+        use super::*;
+
+        ensure_slice_traits! {
+            owned { LowerAsciiString: String },
+            slice { LowerAsciiStr: str },
+            targets { ToOwned, DefaultRef }
+        }
+    }
 }

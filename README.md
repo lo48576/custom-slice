@@ -207,6 +207,40 @@ custom_slice_macros::define_slice_types_pair! {
         * This returns `OwnedInner`.
         * This is available only for owned types.
 
+### Comments and attributes for functions
+In attributes to specify functions (such as `get_ref` and `new_unchecked`), you
+can specify attributes and comments.
+
+For example:
+
+```rust
+custom_slice_macros::define_slice_types_pair! {
+    /// Owned slice.
+    #[custom_slice(owned)]
+    #[custom_slice(get_ref = "#[allow(missing_docs)] pub fn get")]
+    #[custom_slice(get_mut = "#[deny(dead_code)] fn get_mut")]
+    #[custom_slice(into_inner = "
+        /// Extracts the inner owned slice.
+        pub fn into_inner
+    ")]
+    pub struct Owned(OwnedInner);
+
+    /// Borrowed slice.
+    #[repr(transparent)]
+    #[custom_slice(slice)]
+    #[custom_slice(new_unchecked = "
+        /// Creates a new `Slice` without validation.
+        #[deprecated (since = \"0.2.0\", note = \"Use `new_checked`\")]
+        pub fn new_unchecked
+    ")]
+    #[custom_slice(new_checked = "
+        /// Creates a new `Slice` if the given value is valid.
+        pub fn new_checked
+    ")]
+    pub struct Slice(SliceInner);
+}
+```
+
 ### Deriving traits
 
 `custom_slice_macros::define_slice_types_pair!` supports generating impls which
@@ -229,20 +263,117 @@ custom_slice_macros::define_slice_types_pair! {
 
 The following derive targets are available:
 
-* For owned types:
+#### Derive targets for owned types
+* `std::borrow::*`
     + `BorrowMut`:
       `impl std::borrow::BorrowMut<Slice> for Owned { /* .. */ }`
+* `std::cmp::*`
+    + `PartialEq`:
+      `impl std::cmp::PartialEq<Owned> for Owned { /* .. */ }`
+        * Requires `PartialEq<Slice> for Slice`.
+        * Usual `#[derive(PartialEq)]` uses
+          `<OwnedInner as PartialEq<OwnedInner>>` as its internal
+          implementation, but `#[custom_slice(derive(PartialEq))]` uses
+          `<Slice as PartialEq<Slice>>` internally.
+          If you define custom comparison for `Slice` type, you should use
+          `#[custom_slice(derive(PartialEq))]` for `Owned` type.
+    + `PartialEqBulk`: Many impls using `<Slice as PartialEq<Slice>>`.
+        * Requires `PartialEq<Slice> for Slice`.
+        * `impl PartialEq<Slice> for Owned`
+        * `impl PartialEq<Owned> for Slice`
+        * `impl PartialEq<&Slice> for Owned`
+        * `impl PartialEq<Owned> for &Slice`
+        * `impl PartialEq<Cow<Slice>> for Owned`
+        * `impl PartialEq<Owned> for Cow<Slice>`
+    + `PartialEqInnerBulk`: Many impls using
+      `<SliceInner as PartialEq<SliceInner>>`.
+        * Requires `PartialEq<SliceInner> for SliceInner`.
+        * `impl PartialEq<SliceInner> for Owned`
+        * `impl PartialEq<Owned> for SliceInner`
+        * `impl PartialEq<&SliceInner> for Owned`
+        * `impl PartialEq<Owned> for &SliceInner`
+        * `impl PartialEq<Cow<SliceInner>> for Owned`
+        * `impl PartialEq<Owned> for Cow<SliceInner>`
+    * `PartialOrd`, `PartialOrdBulk`, `PartialOrdInnerBulk`: `PartialOrd`
+      version of the corresponding `PartialEq*` targets.
+        * Requires the corresponding `PartialEq*` impls.
+        * See description of the corresponding `PartialEq*` for detail.
+* `std::convert::*`
+    + `AsRefSlice`:
+      `impl std::convert::AsRef<Slice> for Owned { /* .. */ }`
+        * Requires `AsRef<SliceInner>: OwnedInner`.
+    + `AsRefSliceInner`:
+      `impl std::convert::AsRef<SliceInner> for Owned { /* .. */ }`
+        * Requires `AsRef<SliceInner>: OwnedInner`.
+    + `AsMutSlice`:
+      `impl std::convert::AsMut<Slice> for Owned { /* .. */ }`
+        * Requires `AsMut<SliceInner>: OwnedInner`.
+    + `AsMutSliceInner`:
+      `impl std::convert::AsMut<SliceInner> for Owned { /* .. */ }`
+        * Requires `AsMut<SliceInner>: OwnedInner`.
+    + `FromInner`:
+      `impl std::convert::From<OwnedInner> for Owned { /* .. */ }`
+        * Requires validator to be absent.
+    + `IntoInner`:
+      `impl std::convert::From<Owned> for OwnedInner { /* .. */ }`
+    + `TryFromInner`:
+      `impl std::convert::TryFrom<OwnedInner> for Owned { /* .. */ }`
+        * Requires validator to be present.
+* `std::ops::*`
     + `Deref`:
       `impl std::ops::Deref for Owned { type Target = Slice; /* .. */ }`
     + `DerefMut`:
       `impl std::ops::DerefMut for Owned { /* .. */ }`
-* For slice types:
-    + `DefaultRef`:
-      `impl std::default::Default for &Slice { /* .. */ }`
-        * Requires `&SliceInner: Default`.
-    + `DefaultRefMut`:
-      `impl std::default::Default for &mut Slice { /* .. */ }`
-        * Requires `&mut SliceInner: Default`.
+        + Requires `Deref<Target = Slice> for Owned`.
+
+#### Derive targets for slice types
+* `std::cmp::*`
+    + `PartialEqBulk`: Many impls using `<Slice as PartialEq<Slice>>`.
+        * Requires `PartialEq<Slice> for Slice`.
+        * `impl PartialEq<&Slice> for Slice`
+        * `impl PartialEq<Slice> for &Slice`
+        * `impl PartialEq<Cow<Slice>> for Slice`
+        * `impl PartialEq<Slice> for Cow<Slice>`
+    + `PartialEqInnerBulk`: Many impls using
+      `<SliceInner as PartialEq<SliceInner>>`.
+        * Requires `PartialEq<SliceInner> for SliceInner`.
+        * `impl PartialEq<SliceInner> for Slice`
+        * `impl PartialEq<Slice> for SliceInner`
+        * `impl PartialEq<&SliceInner> for Slice`
+        * `impl PartialEq<Slice> for &SliceInner`
+        * `impl PartialEq<OwnedInner> for Slice`
+        * `impl PartialEq<Slice> for OwnedInner`
+        * `impl PartialEq<Cow<SliceInner>> for Slice`
+        * `impl PartialEq<Slice> for Cow<SliceInner>`
+        * `impl PartialEq<SliceInner> for &Slice`
+        * `impl PartialEq<&Slice> for SliceInner`
+        * `impl PartialEq<OwnedInner> for &Slice`
+        * `impl PartialEq<&Slice> for OwnedInner`
+        * `impl PartialEq<Cow<SliceInner>> for &Slice`
+        * `impl PartialEq<&Slice> for Cow<SliceInner>`
+    * `PartialOrdBulk`, `PartialOrdInnerBulk`: `PartialOrd`
+      version of the corresponding `PartialEq*` targets.
+        * Requires the corresponding `PartialEq*` impls.
+        * See description of the corresponding `PartialEq*` for detail.
+* `std::convert::*`
+    + `AsRefSlice`:
+      `impl std::convert::AsRef<Slice> for Slice { /* .. */ }`
+        * Requires `AsRef<SliceInner>: SliceInner`.
+    + `AsRefSliceInner`:
+      `impl std::convert::AsRef<SliceInner> for Slice { /* .. */ }`
+        * Requires `AsRef<SliceInner>: SliceInner`.
+    + `AsMutSlice`:
+      `impl std::convert::AsMut<Slice> for Slice { /* .. */ }`
+        * Requires `AsMut<SliceInner>: SliceInner`.
+    + `AsMutSliceInner`:
+      `impl std::convert::AsMut<SliceInner> for Slice { /* .. */ }`
+        * Requires `AsMut<SliceInner>: SliceInner`.
+    + `FromInner`:
+      `impl<'a> std::convert::From<&'a SliceInner> for &'a Slice { /* .. */ }`
+        * Requires validator to be absent.
+    + `FromInnerMut`:
+      `impl<'a> std::convert::From<&'a mut SliceInner> for &'a mut Slice { /* .. */ }`
+        * Requires validator to be absent.
     + `IntoArc`:
       `impl std::convert::From<&Slice> for std::sync::Arc<Slice> { /* .. */ }`
         * Requires `Arc<SliceInner>: From<&SliceInner>`.
@@ -252,6 +383,28 @@ The following derive targets are available:
     + `IntoRc`:
       `impl std::convert::From<&Slice> for std::rc::Rc<Slice> { /* .. */ }`
         * Requires `Rc<SliceInner>: From<&SliceInner>`.
+    + `TryFromInner`:
+      `impl<'a> std::convert::TryFrom<&'a SliceInner> for &'a Slice { /* .. */ }`
+        * Requires validator to be present.
+    + `TryFromInnerMut`:
+      `impl<'a> std::convert::TryFrom<&'a mut SliceInner> for &'a mut Slice { /* .. */ }`
+        * Requires validator to be present.
+* `std::default::*`
+    + `DefaultBox`:
+      `impl std::default::Default for Box<Slice> { /* .. */ }`
+        * Requires `Box<SliceInner>: Default`.
+    + `DefaultRef`:
+      `impl std::default::Default for &Slice { /* .. */ }`
+        * Requires `&SliceInner: Default`.
+    + `DefaultRefMut`:
+      `impl std::default::Default for &mut Slice { /* .. */ }`
+        * Requires `&mut SliceInner: Default`.
+* `std::ops::*`
+    + `Deref`:
+      `impl std::ops::Deref for Slice { type Target = SliceInner; /* .. */ }`
+    + `DerefMut`:
+      `impl std::ops::DerefMut for Slice { /* .. */ }`
+        + Requires `Deref<Target = SliceInner> for Slice`.
 
 
 ## License
