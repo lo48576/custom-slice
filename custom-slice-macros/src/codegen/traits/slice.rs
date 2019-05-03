@@ -17,14 +17,11 @@ pub(crate) fn impl_default_ref(defs: &Definitions, mutability: impl Mutability) 
     let ty_slice_ref = mutability.make_ref(defs.ty_slice());
     let ty_slice_inner_ref = mutability.make_ref(defs.ty_slice_inner());
 
-    let default = SliceInner::new(
-        quote! {
-            <#ty_slice_inner_ref as std::default::Default>::default()
-        },
+    let body: Slice<_, _> = SliceInner::new(
+        quote!(<#ty_slice_inner_ref as std::default::Default>::default()),
         mutability,
-    );
-    let body: Slice<_, _> = default.to_slice_unchecked(defs, Safety::Safe);
-
+    )
+    .to_slice_unchecked(defs, Safety::Safe);
     quote! {
         impl std::default::Default for #ty_slice_ref {
             fn default() -> Self {
@@ -43,9 +40,7 @@ pub(crate) fn impl_default_smartptr(defs: &Definitions, smartptr: impl SmartPtr)
     let expr_from_raw = {
         let default_smartptr_inner = {
             let ty_smartptr_slice_inner = smartptr.ty(&ty_slice_inner);
-            quote! {
-                <#ty_smartptr_slice_inner as std::default::Default>::default()
-            }
+            quote!(<#ty_smartptr_slice_inner as std::default::Default>::default())
         };
         let expr_into_raw_inner = smartptr.expr_into_raw(ty_slice_inner, default_smartptr_inner);
         smartptr.expr_from_raw(&ty_slice, quote!(#expr_into_raw_inner as *mut #ty_slice))
@@ -87,20 +82,19 @@ pub(crate) fn impl_into_smartptr(defs: &Definitions, smartptr: impl SmartPtr) ->
 /// Implements `ToOwned`.
 pub(crate) fn impl_to_owned(defs: &Definitions) -> TokenStream {
     let ty_owned = defs.ty_owned();
+    let ty_slice = defs.ty_slice();
 
     // `&Slice` -> `&SliceInner` -> `OwnedInner` -> `Owned`.
-    let owned: Owned<_> = Slice::new(quote!(self), Constant)
+    let body: Owned<_> = Slice::new(quote!(self), Constant)
         .to_slice_inner_ref(defs)
         .to_owned_inner(defs)
         .to_owned_unchecked(defs);
-
-    let ty_slice = defs.ty_slice();
     quote! {
         impl std::borrow::ToOwned for #ty_slice {
             type Owned = #ty_owned;
 
             fn to_owned(&self) -> Self::Owned {
-                #owned
+                #body
             }
         }
     }
