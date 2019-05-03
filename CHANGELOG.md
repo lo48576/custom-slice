@@ -10,6 +10,9 @@
     + `{Try,}FromInner`
     + `IntoInner`
     + `Partial{Eq,Ord}{,Bulk,InnerBulk}`
+    + `Deref{,Mut}`
+        + Previously they are supported only for owned types.
+          Now they are also supported for slice types.
 
 ## [0.1.0]
 
