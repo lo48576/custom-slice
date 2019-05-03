@@ -82,6 +82,66 @@ macro_rules! ensure_owned_traits {
             $owned_i: std::convert::From<$owned>,
         {}
     };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = PartialEq) => {
+        #[test]
+        fn partial_eq() where
+            $owned: std::cmp::PartialEq<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = PartialEqBulk) => {
+        #[test]
+        fn partial_eq_bulk() where
+            $owned: std::cmp::PartialEq<$slice>,
+            $slice: std::cmp::PartialEq<$owned>,
+            for<'a> $owned: std::cmp::PartialEq<&'a $slice>,
+            for<'a> &'a $slice: std::cmp::PartialEq<$owned>,
+            for<'a> $owned: std::cmp::PartialEq<std::borrow::Cow<'a, $slice>>,
+            for<'a> std::borrow::Cow<'a, $slice>: std::cmp::PartialEq<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $slice_i:ty }, target = PartialEqInnerBulk) => {
+        #[test]
+        fn partial_eq_inner_bulk() where
+            $owned: std::cmp::PartialEq<$slice_i>,
+            $slice_i: std::cmp::PartialEq<$owned>,
+            for<'a> $owned: std::cmp::PartialEq<&'a $slice_i>,
+            for<'a> &'a $slice_i: std::cmp::PartialEq<$owned>,
+            for<'a> $owned: std::cmp::PartialEq<std::borrow::Cow<'a, $slice_i>>,
+            for<'a> std::borrow::Cow<'a, $slice_i>: std::cmp::PartialEq<$owned>,
+            $owned: std::cmp::PartialEq<$owned_i>,
+            $owned_i: std::cmp::PartialEq<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = PartialOrd) => {
+        #[test]
+        fn partial_ord() where
+            $owned: std::cmp::PartialOrd<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = PartialOrdBulk) => {
+        #[test]
+        fn partial_eq_bulk() where
+            $owned: std::cmp::PartialOrd<$slice>,
+            $slice: std::cmp::PartialOrd<$owned>,
+            for<'a> $owned: std::cmp::PartialOrd<&'a $slice>,
+            for<'a> &'a $slice: std::cmp::PartialOrd<$owned>,
+            for<'a> $owned: std::cmp::PartialOrd<std::borrow::Cow<'a, $slice>>,
+            for<'a> std::borrow::Cow<'a, $slice>: std::cmp::PartialOrd<$owned>,
+        {}
+    };
+    (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $slice_i:ty }, target = PartialOrdInnerBulk) => {
+        #[test]
+        fn partial_ord_inner_bulk() where
+            $owned: std::cmp::PartialOrd<$slice_i>,
+            $slice_i: std::cmp::PartialOrd<$owned>,
+            for<'a> $owned: std::cmp::PartialOrd<&'a $slice_i>,
+            for<'a> &'a $slice_i: std::cmp::PartialOrd<$owned>,
+            for<'a> $owned: std::cmp::PartialOrd<std::borrow::Cow<'a, $slice_i>>,
+            for<'a> std::borrow::Cow<'a, $slice_i>: std::cmp::PartialOrd<$owned>,
+            $owned: std::cmp::PartialOrd<$owned_i>,
+            $owned_i: std::cmp::PartialOrd<$owned>,
+        {}
+    };
     (owned { $owned:ty: $owned_i:ty }, slice { $_slice:ty: $_slice_i:ty }, target = TryFromInner) => {
         #[test]
         fn try_from_inner() where
@@ -185,6 +245,62 @@ macro_rules! ensure_slice_traits {
         #[test]
         fn into_rc() where
             for<'a> std::rc::Rc<$slice>: std::convert::From<&'a $slice>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = PartialEqBulk) => {
+        #[test]
+        fn partial_eq_bulk() where
+            for<'a> $slice: std::cmp::PartialEq<&'a $slice>,
+            for<'a> &'a $slice: std::cmp::PartialEq<$slice>,
+            for<'a> $slice: std::cmp::PartialEq<std::borrow::Cow<'a, $slice>>,
+            for<'a> std::borrow::Cow<'a, $slice>: std::cmp::PartialEq<$slice>,
+        {}
+    };
+    (owned { $_owned:ty: $owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = PartialEqInnerBulk) => {
+        #[test]
+        fn partial_eq_bulk() where
+            $slice: std::cmp::PartialEq<$slice_i>,
+            $slice_i: std::cmp::PartialEq<$slice>,
+            for<'a> $slice: std::cmp::PartialEq<&'a $slice_i>,
+            for<'a> &'a $slice_i: std::cmp::PartialEq<$slice>,
+            $slice: std::cmp::PartialEq<$owned_i>,
+            $owned_i: std::cmp::PartialEq<$slice>,
+            for<'a> $slice: std::cmp::PartialEq<std::borrow::Cow<'a, $slice_i>>,
+            for<'a> std::borrow::Cow<'a, $slice_i>: std::cmp::PartialEq<$slice>,
+            for<'a> &'a $slice: std::cmp::PartialEq<$slice_i>,
+            for<'a> $slice_i: std::cmp::PartialEq<&'a $slice>,
+            for<'a> &'a $slice: std::cmp::PartialEq<$owned_i>,
+            for<'a> $owned_i: std::cmp::PartialEq<&'a $slice>,
+            for<'a, 'b> &'a $slice: std::cmp::PartialEq<std::borrow::Cow<'b, $slice_i>>,
+            for<'a, 'b> std::borrow::Cow<'b, $slice_i>: std::cmp::PartialEq<&'a $slice>,
+        {}
+    };
+    (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $_slice_i:ty }, target = PartialOrdBulk) => {
+        #[test]
+        fn partial_ord_bulk() where
+            for<'a> $slice: std::cmp::PartialOrd<&'a $slice>,
+            for<'a> &'a $slice: std::cmp::PartialOrd<$slice>,
+            for<'a> $slice: std::cmp::PartialOrd<std::borrow::Cow<'a, $slice>>,
+            for<'a> std::borrow::Cow<'a, $slice>: std::cmp::PartialOrd<$slice>,
+        {}
+    };
+    (owned { $_owned:ty: $owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = PartialOrdInnerBulk) => {
+        #[test]
+        fn partial_ord_bulk() where
+            $slice: std::cmp::PartialOrd<$slice_i>,
+            $slice_i: std::cmp::PartialOrd<$slice>,
+            for<'a> $slice: std::cmp::PartialOrd<&'a $slice_i>,
+            for<'a> &'a $slice_i: std::cmp::PartialOrd<$slice>,
+            $slice: std::cmp::PartialOrd<$owned_i>,
+            $owned_i: std::cmp::PartialOrd<$slice>,
+            for<'a> $slice: std::cmp::PartialOrd<std::borrow::Cow<'a, $slice_i>>,
+            for<'a> std::borrow::Cow<'a, $slice_i>: std::cmp::PartialOrd<$slice>,
+            for<'a> &'a $slice: std::cmp::PartialOrd<$slice_i>,
+            for<'a> $slice_i: std::cmp::PartialOrd<&'a $slice>,
+            for<'a> &'a $slice: std::cmp::PartialOrd<$owned_i>,
+            for<'a> $owned_i: std::cmp::PartialOrd<&'a $slice>,
+            for<'a, 'b> &'a $slice: std::cmp::PartialOrd<std::borrow::Cow<'b, $slice_i>>,
+            for<'a, 'b> std::borrow::Cow<'b, $slice_i>: std::cmp::PartialOrd<&'a $slice>,
         {}
     };
     (owned { $_owned:ty: $_owned_i:ty }, slice { $slice:ty: $slice_i:ty }, target = TryFromInner) => {

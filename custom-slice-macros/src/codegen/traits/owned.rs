@@ -7,7 +7,8 @@ use crate::{
     codegen::{
         expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{Constant, DynMutability, Mutability, Safety},
-        traits::OwnedToSliceTrait,
+        traits::{CmpTrait, OwnedToSliceTrait},
+        types::RefType,
     },
     defs::Definitions,
 };
@@ -84,6 +85,70 @@ pub(crate) fn impl_borrow(defs: &Definitions, mutability: impl Mutability) -> To
             }
         }
     }
+}
+
+/// Implements `PartialEq` and `PartialOrd` using comparison of `Slice` type.
+pub(crate) fn impl_cmp(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    target
+        .impl_with_slice(defs, RefType::Owned, RefType::Owned)
+        .into_token_stream()
+}
+
+/// Implements `PartialEq` and `PartialOrd` for many types.
+pub(crate) fn impl_cmp_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    let mut tokens = TokenStream::new();
+    target
+        .impl_with_slice(defs, RefType::Owned, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_slice(defs, RefType::Slice, RefType::Owned)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_slice(defs, RefType::Owned, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_slice(defs, RefType::RefSlice, RefType::Owned)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_slice(defs, RefType::Owned, RefType::CowSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_slice(defs, RefType::CowSlice, RefType::Owned)
+        .to_tokens(&mut tokens);
+
+    tokens
+}
+
+/// Implements `PartialEq` and `PartialOrd` for many types.
+pub(crate) fn impl_cmp_inner_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    let mut tokens = TokenStream::new();
+    target
+        .impl_with_inner(defs, RefType::Owned, RefType::SliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::SliceInner, RefType::Owned)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Owned, RefType::RefSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::RefSliceInner, RefType::Owned)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Owned, RefType::CowSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::CowSliceInner, RefType::Owned)
+        .to_tokens(&mut tokens);
+
+    target
+        .impl_with_inner(defs, RefType::Owned, RefType::OwnedInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::OwnedInner, RefType::Owned)
+        .to_tokens(&mut tokens);
+
+    tokens
 }
 
 /// Implements `Deref` or `DerefMut`.

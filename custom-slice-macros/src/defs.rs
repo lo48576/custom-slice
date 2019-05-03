@@ -11,7 +11,7 @@ use crate::{
     codegen::{
         expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{Constant, Mutability, Mutable, Safety},
-        traits,
+        traits::{self, CmpTrait},
         types::StdSmartPtr,
     },
 };
@@ -310,6 +310,16 @@ impl Definitions {
                 "Deref" => traits::owned::impl_deref(self, Constant),
                 "DerefMut" => traits::owned::impl_deref(self, Mutable),
                 "FromInner" => traits::owned::impl_from_inner(self),
+                "PartialEq" => traits::owned::impl_cmp(self, CmpTrait::PartialEq),
+                "PartialEqBulk" => traits::owned::impl_cmp_bulk(self, CmpTrait::PartialEq),
+                "PartialEqInnerBulk" => {
+                    traits::owned::impl_cmp_inner_bulk(self, CmpTrait::PartialEq)
+                }
+                "PartialOrd" => traits::owned::impl_cmp(self, CmpTrait::PartialOrd),
+                "PartialOrdBulk" => traits::owned::impl_cmp_bulk(self, CmpTrait::PartialOrd),
+                "PartialOrdInnerBulk" => {
+                    traits::owned::impl_cmp_inner_bulk(self, CmpTrait::PartialOrd)
+                }
                 "IntoInner" => traits::owned::impl_into_inner(self),
                 "TryFromInner" => traits::owned::impl_try_from_inner(self),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
@@ -337,6 +347,14 @@ impl Definitions {
                 "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
                 "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
                 "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),
+                "PartialEqBulk" => traits::slice::impl_cmp_bulk(self, CmpTrait::PartialEq),
+                "PartialEqInnerBulk" => {
+                    traits::slice::impl_cmp_inner_bulk(self, CmpTrait::PartialEq)
+                }
+                "PartialOrdBulk" => traits::slice::impl_cmp_bulk(self, CmpTrait::PartialOrd),
+                "PartialOrdInnerBulk" => {
+                    traits::slice::impl_cmp_inner_bulk(self, CmpTrait::PartialOrd)
+                }
                 "TryFromInner" => traits::slice::impl_try_from_inner(self, Constant),
                 "TryFromInnerMut" => traits::slice::impl_try_from_inner(self, Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
@@ -411,7 +429,8 @@ impl CustomType {
     /// Returns the inner type expression from the outer type expression
     pub(crate) fn inner_expr(&self, outer_expr: impl ToTokens) -> TokenStream {
         let field_name = self.field_name();
-        quote!(#outer_expr.#field_name)
+        // `outer_expr` can be expressions such as `*self`.
+        quote!((#outer_expr).#field_name)
     }
 }
 

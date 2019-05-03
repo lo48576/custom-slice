@@ -7,8 +7,8 @@ use crate::{
     codegen::{
         expr::{Owned, Slice, SliceInner},
         props::{Constant, Mutability, Safety},
-        traits::OwnedToSliceTrait,
-        types::{SmartPtr, SmartPtrExt},
+        traits::{CmpTrait, OwnedToSliceTrait},
+        types::{RefType, SmartPtr, SmartPtrExt},
     },
     defs::Definitions,
 };
@@ -51,6 +51,75 @@ pub(crate) fn impl_as_ref_slice_inner(
             }
         }
     }
+}
+
+/// Implements `PartialEq` and `PartialOrd` for many types.
+pub(crate) fn impl_cmp_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    let mut tokens = TokenStream::new();
+    target
+        .impl_with_slice(defs, RefType::Slice, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_slice(defs, RefType::RefSlice, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_slice(defs, RefType::Slice, RefType::CowSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_slice(defs, RefType::CowSlice, RefType::Slice)
+        .to_tokens(&mut tokens);
+
+    tokens
+}
+
+/// Implements `PartialEq` and `PartialOrd` for many types.
+pub(crate) fn impl_cmp_inner_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    let mut tokens = TokenStream::new();
+    target
+        .impl_with_inner(defs, RefType::Slice, RefType::SliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::SliceInner, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Slice, RefType::RefSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::RefSliceInner, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Slice, RefType::OwnedInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::OwnedInner, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::Slice, RefType::CowSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::CowSliceInner, RefType::Slice)
+        .to_tokens(&mut tokens);
+
+    target
+        .impl_with_inner(defs, RefType::RefSlice, RefType::SliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::SliceInner, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::RefSlice, RefType::OwnedInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::OwnedInner, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::RefSlice, RefType::CowSliceInner)
+        .to_tokens(&mut tokens);
+    target
+        .impl_with_inner(defs, RefType::CowSliceInner, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+
+    tokens
 }
 
 /// Implements `Default` for `&Slice` or `&mut Slice`.

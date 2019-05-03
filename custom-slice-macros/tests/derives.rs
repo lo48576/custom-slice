@@ -165,6 +165,66 @@ mod owned {
     }
 
     gen_test! {
+        name: partial_eq,
+        #[custom_slice(derive(PartialEq))]
+        owned: Vec<u8>,
+        owned_tests: { PartialEq },
+        #[derive(PartialEq)]
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: partial_eq_bulk,
+        #[derive(PartialEq)]
+        #[custom_slice(derive(PartialEqBulk))]
+        owned: Vec<u8>,
+        owned_tests: { PartialEqBulk },
+        #[derive(PartialEq)]
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: partial_eq_inner_bulk,
+        #[custom_slice(derive(PartialEqInnerBulk))]
+        owned: Vec<u8>,
+        owned_tests: { PartialEqInnerBulk },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: partial_ord,
+        #[custom_slice(derive(PartialEq, PartialOrd))]
+        owned: Vec<u8>,
+        owned_tests: { PartialOrd },
+        #[derive(PartialEq, PartialOrd)]
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: partial_ord_bulk,
+        #[derive(PartialEq, PartialOrd)]
+        #[custom_slice(derive(PartialEqBulk, PartialOrdBulk))]
+        owned: Vec<u8>,
+        owned_tests: { PartialOrdBulk },
+        #[derive(PartialEq, PartialOrd)]
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
+        name: partial_ord_inner_bulk,
+        #[custom_slice(derive(PartialEqInnerBulk, PartialOrdInnerBulk))]
+        owned: Vec<u8>,
+        owned_tests: { PartialOrdInnerBulk },
+        slice: [u8],
+        slice_tests: {},
+    }
+
+    gen_test! {
         name: try_from_inner,
         #[custom_slice(derive(TryFromInner))]
         #[custom_slice(error(r#type = "()"))]
@@ -292,6 +352,45 @@ mod slice {
         #[custom_slice(derive(IntoRc))]
         slice: [u8],
         slice_tests: { IntoRc },
+    }
+
+    gen_test! {
+        name: partial_eq_bulk,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[derive(PartialEq)]
+        #[custom_slice(derive(PartialEqBulk))]
+        slice: [u8],
+        slice_tests: { PartialEqBulk },
+    }
+
+    gen_test! {
+        name: partial_eq_inner_bulk,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[derive(PartialEq)]
+        #[custom_slice(derive(PartialEqInnerBulk))]
+        slice: [u8],
+        slice_tests: { PartialEqInnerBulk },
+    }
+
+    gen_test! {
+        name: partial_ord_bulk,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[derive(PartialEq, PartialOrd)]
+        #[custom_slice(derive(PartialEqBulk, PartialOrdBulk))]
+        slice: [u8],
+        slice_tests: { PartialOrdBulk },
+    }
+
+    gen_test! {
+        name: partial_ord_inner_bulk,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[custom_slice(derive(PartialEqInnerBulk, PartialOrdInnerBulk))]
+        slice: [u8],
+        slice_tests: { PartialOrdInnerBulk },
     }
 
     gen_test! {
