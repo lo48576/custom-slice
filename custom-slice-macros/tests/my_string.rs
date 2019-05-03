@@ -1,5 +1,8 @@
 //! Custom string test.
 
+#[macro_use]
+mod utils;
+
 // No validations.
 custom_slice_macros::define_slice_types_pair! {
     #[derive(Default)]
@@ -34,32 +37,10 @@ mod owned {
     mod traits {
         use super::*;
 
-        #[test]
-        fn borrow()
-        where
-            MyString: std::borrow::Borrow<MyStr>,
-        {
-        }
-
-        #[test]
-        fn default()
-        where
-            MyString: Default,
-        {
-        }
-
-        #[test]
-        fn deref()
-        where
-            MyString: std::ops::Deref<Target = MyStr>,
-        {
-        }
-
-        #[test]
-        fn deref_mut()
-        where
-            MyString: std::ops::DerefMut<Target = MyStr>,
-        {
+        ensure_owned_traits! {
+            owned { MyString: String },
+            slice { MyStr: str },
+            targets { Borrow, Default, Deref, DerefMut }
         }
     }
 }
@@ -86,53 +67,10 @@ mod slice {
     mod traits {
         use super::*;
 
-        #[test]
-        fn to_owned()
-        where
-            MyStr: std::borrow::ToOwned<Owned = MyString>,
-        {
-        }
-
-        #[test]
-        fn default_ref()
-        where
-            for<'a> &'a MyStr: Default,
-        {
-        }
-
-        #[test]
-        fn default_ref_mut()
-        where
-            for<'a> &'a mut MyStr: Default,
-        {
-        }
-
-        #[test]
-        fn default_box()
-        where
-            Box<MyStr>: Default,
-        {
-        }
-
-        #[test]
-        fn into_arc()
-        where
-            for<'a> std::sync::Arc<MyStr>: From<&'a MyStr>,
-        {
-        }
-
-        #[test]
-        fn into_box()
-        where
-            for<'a> Box<MyStr>: From<&'a MyStr>,
-        {
-        }
-
-        #[test]
-        fn into_rc()
-        where
-            for<'a> std::rc::Rc<MyStr>: From<&'a MyStr>,
-        {
+        ensure_slice_traits! {
+            owned { MyString: String },
+            slice { MyStr: str },
+            targets { ToOwned, DefaultRef, DefaultRefMut, DefaultBox, IntoArc, IntoBox, IntoRc }
         }
     }
 }

@@ -2,6 +2,9 @@
 
 use std::{error, fmt};
 
+#[macro_use]
+mod utils;
+
 /// Error for lower ascii string creation.
 #[derive(Debug, Clone, Copy)]
 pub struct Error(char);
@@ -72,32 +75,10 @@ mod owned {
     mod traits {
         use super::*;
 
-        #[test]
-        fn borrow()
-        where
-            LowerAsciiString: std::borrow::Borrow<LowerAsciiStr>,
-        {
-        }
-
-        #[test]
-        fn default()
-        where
-            LowerAsciiString: Default,
-        {
-        }
-
-        #[test]
-        fn deref()
-        where
-            LowerAsciiString: std::ops::Deref<Target = LowerAsciiStr>,
-        {
-        }
-
-        #[test]
-        fn deref_mut()
-        where
-            LowerAsciiString: std::ops::DerefMut<Target = LowerAsciiStr>,
-        {
+        ensure_owned_traits! {
+            owned { LowerAsciiString: String },
+            slice { LowerAsciiStr: str },
+            targets { Borrow, Default, Deref, DerefMut }
         }
     }
 }
@@ -148,18 +129,10 @@ mod slice {
     mod traits {
         use super::*;
 
-        #[test]
-        fn to_owned()
-        where
-            LowerAsciiStr: std::borrow::ToOwned<Owned = LowerAsciiString>,
-        {
-        }
-
-        #[test]
-        fn default_ref()
-        where
-            for<'a> &'a LowerAsciiStr: Default,
-        {
+        ensure_slice_traits! {
+            owned { LowerAsciiString: String },
+            slice { LowerAsciiStr: str },
+            targets { ToOwned, DefaultRef }
         }
     }
 }

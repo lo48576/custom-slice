@@ -2,6 +2,9 @@
 
 use std::{error, fmt};
 
+#[macro_use]
+mod utils;
+
 /// Error for UTF-8 string slice creation.
 ///
 /// See <https://doc.rust-lang.org/stable/std/str/struct.Utf8Error.html>.
@@ -137,32 +140,10 @@ mod owned {
     mod traits {
         use super::*;
 
-        #[test]
-        fn borrow()
-        where
-            StdString: std::borrow::Borrow<StdStr>,
-        {
-        }
-
-        #[test]
-        fn borrow_mut()
-        where
-            StdString: std::borrow::BorrowMut<StdStr>,
-        {
-        }
-
-        #[test]
-        fn deref()
-        where
-            StdString: std::ops::Deref<Target = StdStr>,
-        {
-        }
-
-        #[test]
-        fn deref_mut()
-        where
-            StdString: std::ops::DerefMut<Target = StdStr>,
-        {
+        ensure_owned_traits! {
+            owned { StdString: Vec<u8> },
+            slice { StdStr: [u8] },
+            targets { Borrow, BorrowMut, Deref, DerefMut }
         }
     }
 }
@@ -203,25 +184,10 @@ mod slice {
     mod traits {
         use super::*;
 
-        #[test]
-        fn to_owned()
-        where
-            StdStr: std::borrow::ToOwned<Owned = StdString>,
-        {
-        }
-
-        #[test]
-        fn default_ref()
-        where
-            for<'a> &'a StdStr: Default,
-        {
-        }
-
-        #[test]
-        fn default_ref_mut()
-        where
-            for<'a> &'a mut StdStr: Default,
-        {
+        ensure_slice_traits! {
+            owned { StdString: String },
+            slice { StdStr: str },
+            targets { ToOwned, DefaultRef, DefaultRefMut }
         }
     }
 }
