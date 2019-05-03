@@ -2,7 +2,13 @@
 
 use quote::{quote, ToTokens};
 
-use crate::codegen::props::{DynMutability, Mutability};
+use crate::{
+    codegen::{
+        props::{DynMutability, Mutability},
+        types::RefType,
+    },
+    defs::Definitions,
+};
 
 pub(crate) mod owned;
 pub(crate) mod slice;
@@ -84,5 +90,60 @@ impl OwnedToSliceTrait {
     ) -> impl ToTokens {
         let path_method = self.path_method(ty_owned, ty_slice, mutability);
         quote!(#path_method(#expr_owned_ref))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CmpTrait {
+    /// `std::cmp::PartialEq`.
+    PartialEq,
+    /// `std::cmp::PartialOrd`.
+    PartialOrd,
+}
+
+impl CmpTrait {
+    fn trait_path(self) -> impl ToTokens {
+        match self {
+            CmpTrait::PartialEq => quote!(std::cmp::PartialEq),
+            CmpTrait::PartialOrd => quote!(std::cmp::PartialOrd),
+        }
+    }
+
+    fn method_name(self) -> impl ToTokens {
+        match self {
+            CmpTrait::PartialEq => quote!(eq),
+            CmpTrait::PartialOrd => quote!(partial_cmp),
+        }
+    }
+
+    fn ty_ret(self) -> impl ToTokens {
+        match self {
+            CmpTrait::PartialEq => quote!(bool),
+            CmpTrait::PartialOrd => quote!(Option<std::cmp::Ordering>),
+        }
+    }
+
+    pub(crate) fn impl_(self, defs: &Definitions, lhs: RefType, rhs: RefType) -> impl ToTokens {
+        let trait_path = self.trait_path();
+        let method = self.method_name();
+        let ty_ret = self.ty_ret();
+        let arg_rhs = &quote!(__other);
+
+        let ty_slice = defs.ty_slice();
+        let expr_lhs = lhs.ref_to_slice_inner_ref(defs, quote!(self));
+        let expr_rhs = rhs.ref_to_slice_inner_ref(defs, arg_rhs);
+        let ty_lhs = lhs.ty(defs);
+        let ty_rhs = rhs.ty(defs);
+
+        quote! {
+            impl #trait_path<#ty_rhs> for #ty_lhs {
+                fn #method(&self, #arg_rhs: &#ty_rhs) -> #ty_ret {
+                    #trait_path::<#ty_slice>::#method(
+                        #expr_lhs,
+                        #expr_rhs,
+                    )
+                }
+            }
+        }
     }
 }

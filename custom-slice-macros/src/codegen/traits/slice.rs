@@ -7,8 +7,8 @@ use crate::{
     codegen::{
         expr::{Owned, Slice, SliceInner},
         props::{Constant, Mutability, Safety},
-        traits::OwnedToSliceTrait,
-        types::{SmartPtr, SmartPtrExt},
+        traits::{CmpTrait, OwnedToSliceTrait},
+        types::{RefType, SmartPtr, SmartPtrExt},
     },
     defs::Definitions,
 };
@@ -51,6 +51,25 @@ pub(crate) fn impl_as_ref_slice_inner(
             }
         }
     }
+}
+
+/// Implements `PartialEq` and `PartialOrd` for many types.
+pub(crate) fn impl_cmp_bulk(defs: &Definitions, target: CmpTrait) -> TokenStream {
+    let mut tokens = TokenStream::new();
+    target
+        .impl_(defs, RefType::Slice, RefType::RefSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_(defs, RefType::RefSlice, RefType::Slice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_(defs, RefType::Slice, RefType::CowSlice)
+        .to_tokens(&mut tokens);
+    target
+        .impl_(defs, RefType::CowSlice, RefType::Slice)
+        .to_tokens(&mut tokens);
+
+    tokens
 }
 
 /// Implements `Default` for `&Slice` or `&mut Slice`.

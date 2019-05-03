@@ -3,6 +3,8 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
+use crate::defs::Definitions;
+
 pub(crate) trait SmartPtr {
     fn ty(&self, ty_inner: impl ToTokens) -> TokenStream;
     fn method_from_raw(&self) -> TokenStream;
@@ -52,3 +54,47 @@ pub(crate) trait SmartPtrExt: SmartPtr {
 }
 
 impl<T: SmartPtr> SmartPtrExt for T {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RefType {
+    /// `Slice`.
+    Slice,
+    /// `&Slice`.
+    RefSlice,
+    /// `Owned`.
+    Owned,
+    /// `Cow<Slice>`.
+    CowSlice,
+}
+
+impl RefType {
+    pub(crate) fn ty(self, defs: &Definitions) -> TokenStream {
+        match self {
+            RefType::Slice => defs.ty_slice().into_token_stream(),
+            RefType::RefSlice => {
+                let ty_slice = defs.ty_slice();
+                quote!(&#ty_slice)
+            }
+            RefType::Owned => defs.ty_owned().into_token_stream(),
+            RefType::CowSlice => {
+                let ty_slice = defs.ty_slice();
+                quote!(std::borrow::Cow<'_, #ty_slice>)
+            }
+        }
+    }
+
+    /// Converts the given reference type expression to `&Slice` type.
+    pub(crate) fn ref_to_slice_inner_ref(
+        self,
+        defs: &Definitions,
+        expr: impl ToTokens,
+    ) -> TokenStream {
+        let ty_slice = defs.ty_slice();
+        match self {
+            RefType::Slice => expr.into_token_stream(),
+            RefType::RefSlice => quote!(*#expr),
+            RefType::Owned => quote!(std::borrow::Borrow::<#ty_slice>::borrow(#expr)),
+            RefType::CowSlice => quote!(std::borrow::Borrow::<#ty_slice>::borrow(#expr)),
+        }
+    }
+}

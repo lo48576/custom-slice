@@ -295,6 +295,26 @@ mod slice {
     }
 
     gen_test! {
+        name: partial_eq_bulk,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[derive(PartialEq)]
+        #[custom_slice(derive(PartialEqBulk))]
+        slice: [u8],
+        slice_tests: { PartialEqBulk },
+    }
+
+    gen_test! {
+        name: partial_ord_bulk,
+        owned: Vec<u8>,
+        owned_tests: {},
+        #[derive(PartialEq, PartialOrd)]
+        #[custom_slice(derive(PartialEqBulk, PartialOrdBulk))]
+        slice: [u8],
+        slice_tests: { PartialOrdBulk },
+    }
+
+    gen_test! {
         name: try_from_inner,
         #[custom_slice(error(r#type = "()"))]
         owned: Vec<u8>,

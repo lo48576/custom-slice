@@ -11,7 +11,7 @@ use crate::{
     codegen::{
         expr::{Owned, OwnedInner, Slice, SliceInner},
         props::{Constant, Mutability, Mutable, Safety},
-        traits,
+        traits::{self, CmpTrait},
         types::StdSmartPtr,
     },
 };
@@ -337,6 +337,8 @@ impl Definitions {
                 "IntoArc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Arc),
                 "IntoBox" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Box),
                 "IntoRc" => traits::slice::impl_into_smartptr(self, StdSmartPtr::Rc),
+                "PartialEqBulk" => traits::slice::impl_cmp_bulk(self, CmpTrait::PartialEq),
+                "PartialOrdBulk" => traits::slice::impl_cmp_bulk(self, CmpTrait::PartialOrd),
                 "TryFromInner" => traits::slice::impl_try_from_inner(self, Constant),
                 "TryFromInnerMut" => traits::slice::impl_try_from_inner(self, Mutable),
                 derive => panic!("Unknown derive target for slice type: {:?}", derive),
